@@ -9,6 +9,9 @@ struct program;
 struct expr;
 struct stmt;
 struct lval_expr;
+struct block_stmt;
+struct func_param;
+struct func_def;
 
 enum ASTKind {
     Program,
@@ -19,7 +22,10 @@ enum ASTKind {
     Node,
     Token,
     LVAL,
-    Expr_Stmt
+    Expr_Stmt,
+    Func_Param,
+    Func_Def,
+    Var_Def
 };
 
 struct node {
@@ -38,6 +44,9 @@ using nodePtr = std::unique_ptr<node>;
 using expPtr = std::unique_ptr<expr>;
 using lvalPtr = std::unique_ptr<lval_expr>;
 using stmtPtr = std::unique_ptr<stmt>;
+using blockPtr = std::unique_ptr<block_stmt>;
+using funcparamPtr = std::unique_ptr<func_param>;
+using funcDefPtr = std::unique_ptr<func_def>;  
 
 std::string locToString(std::pair<size_t, size_t> location);
 
@@ -274,20 +283,27 @@ public:
         if (item) items.push_back(std::move(item));
     }
 
+    void setLoc(size_t row, size_t col) {
+        this->location.first = row;
+        this->location.second = col;
+    }
+
     std::string to_string() override {
         return "block_stmt";
     }
 
     void printAST(std::string prefix, std::string info_prefix) override {
-        std::cout << info_prefix << to_string() << locToString(location);
-        for (size_t i = 0; i < items.size(); ++i) {
-            if (i != items.size() - 1) {
-                items[i]->printAST(prefix + "│   ", prefix + "├── ");
-            } else {
-                items[i]->printAST(prefix + "    ", prefix + "└── ");
-            }
+    std::cout << info_prefix << to_string() << locToString(location);
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (i != items.size() - 1) {
+            items[i]->printAST(prefix + "│   ", prefix + "├── ");
+        } else {
+            items[i]->printAST(prefix + "    ", prefix + "└── ");
         }
     }
+}
+
+
 public:
     std::vector<nodePtr> items;
 };
@@ -344,5 +360,212 @@ struct int_literal : public literal {
 
 
 
+
+struct func_param : public node {
+    func_param(size_t row, size_t col)
+        : node(row, col), type(nullptr) {}
+
+    std::string to_string() override {
+        return "fun_param <id " + id + ", type " + (type ? type->to_string() : "") + ">";
+    }
+
+    void setType(const std::string &type) {
+        
+        if(this->type == nullptr) {
+            this->type = TypeFactory::getTypeFromName(type);
+        } else if(this->type->kind == TypeKind::Array) {
+            ArrayType* ptr = static_cast<ArrayType*>(this->type.get());
+            ptr->setBaseTypeAndReverse(TypeFactory::getTypeFromName(type));
+        }
+    }
+
+    void setId(const std::string& id) {
+        this->id = id;
+    }
+
+    void addDim(size_t n) {
+        if(type == nullptr) {
+            type = std::move(TypeFactory::getArray());
+        }
+        std::cout << type->kind << "mmm\n";
+        ArrayType* ptr = static_cast<ArrayType*>(type.get());
+        ptr->addDim(n);
+    }
+
+    void printAST(std::string prefix, std::string info_prefix) override {
+        std::cout << info_prefix << to_string() << "\n";
+        // std::cout << prefix << ((dims.size() == 0) ? "└── " : "├── " ) << "?\n";
+        // for (size_t i = 0; i < dims.size(); ++i) {
+        //     if(i != dims.size() - 1) {
+        //         dims[i]->printAST(prefix + "│   ", prefix + "├── ");
+        //     } else {
+        //         dims[i]->printAST(prefix + "    ", prefix + "└── ");
+        //     }
+        // }
+    }
+    const ASTKind kind = Func_Param;
+    // std::string type;
+    TypePtr type;
+    std::string id;
+};
+
+// // Subclass for the base type of the function parameter
+// struct base_type_param : public func_param {
+//     base_type_param(size_t row, size_t col, const std::string& type, const std::string& id)
+//         : func_param(row, col), type(type), id(id) {}
+
+//     std::string to_string() override {
+//         return "basetype_param <type " + type + ",id " + id + ">";
+//     }
+
+//     void printAST(std::string prefix, std::string info_prefix) override {
+//         std::cout << info_prefix << to_string() << locToString(location);
+//     }
+
+//     std::string type;
+//     std::string id;
+// };
+
+// // Subclass for array parameters
+// struct array_param : public func_param {
+//     array_param(size_t row, size_t col)
+//         : func_param(row, col) {}
+
+//     std::string to_string() override {
+//         return "array_param <type " + type + ", id " + id + ">";
+//     }
+
+//     void setType(const std::string &type) {
+//         this->type = type;
+//     }
+
+//     void setIdAndReverseDim(const std::string& id) {
+//         this->id = id;
+//         std::reverse(dims.begin(), dims.end());
+//     }
+
+//     void addDim(expPtr dim) {
+//         dims.push_back(std::move(dim));
+//     }
+
+//     void printAST(std::string prefix, std::string info_prefix) override {
+//         std::cout << info_prefix << to_string() << "\n";
+//         std::cout << prefix << ((dims.size() == 0) ? "└── " : "├── " ) << "?\n";
+//         for (size_t i = 0; i < dims.size(); ++i) {
+//             if(i != dims.size() - 1) {
+//                 dims[i]->printAST(prefix + "│   ", prefix + "├── ");
+//             } else {
+//                 dims[i]->printAST(prefix + "    ", prefix + "└── ");
+//             }
+//         }
+//     }
+//     const ASTKind kind = ArrayParam;
+//     std::string type;
+//     std::string id;
+//     std::vector<expPtr> dims;
+// };
+
+
+struct func_def : public node {
+public:
+    func_def(size_t row, size_t col)
+    : node(row, col) {}
+
+    void add_param(funcparamPtr param) {
+        params.push_back(std::move(param));
+    }
+
+    void set_body(blockPtr body) {
+        this->body = std::move(body);
+    }
+
+    void set_ret_type(std::string type) {
+        this->ret_type = TypeFactory::getTypeFromName(type);
+    }
+
+    void set_id_reverse_params(std::string id) {
+        this->name = id;
+        std::reverse(this->params.begin(), this->params.end());
+    } 
+
+    void setLoc(size_t row, size_t col) {
+        this->location.first = row;
+        this->location.second = col;
+    }
+
+    std::string to_string() override {
+        return "FuncDef <ret_type: " + (ret_type ? ret_type->to_string() : "") + ", id: " + name + ">";
+    }
+
+    void printAST(std::string prefix, std::string info_prefix) override {
+        std::cout << info_prefix << to_string() << locToString(location);
+        printArgList(prefix + "│   ", prefix + "├── ");
+        if(body) body->printAST(prefix + "    ", prefix + "└── ");
+    }
+
+    void printArgList(std::string prefix, std::string info_prefix) {
+        std::cout << info_prefix << "paramList\n";
+        for (size_t i = 0; i < params.size(); ++i) {
+            if(i != params.size() - 1) params[i]->printAST(prefix + "│   ", prefix + "├── ");
+            else params[i]->printAST(prefix + "    ", prefix + "└── ");
+        }
+    }
+
+public:
+    const ASTKind kind = ASTKind::Func_Def;
+    TypePtr ret_type;
+    std::string name;
+    std::vector<funcparamPtr> params;
+    blockPtr body;
+};
+
+struct var_def : public node {
+    std::string id;
+    TypePtr type;
+    nodePtr init_val;
+    std::vector<size_t> pending_dims;
+
+    var_def(size_t row, size_t col)
+        : node(row, col) {}
+
+    void setId(const std::string& name) {
+        id = name;
+    }
+
+    // Called as array dimensions are parsed
+    void addDim(size_t dim) {
+        pending_dims.push_back(dim);
+    }
+
+    // Finalizes the full type by combining baseType with dimensions
+    void finalizeArrayType(TypePtr baseType) {
+        if (pending_dims.empty()) {
+            type = std::move(baseType);
+        } else {
+            auto array = std::make_unique<ArrayType>();
+            for (auto dim : pending_dims) {
+                array->addDim(dim);
+            }
+            array->setBaseTypeAndReverse(std::move(baseType));
+            type = std::move(array);
+        }
+    }
+
+    void setInitVal(nodePtr val) {
+        init_val = std::move(val);
+    }
+
+    std::string to_string() override {
+        std::string res = "var_def " + id + ": ";
+        res += type ? type->to_string() : "unknown";
+        if (init_val) res += " = " + init_val->to_string();
+        return res;
+    }
+
+    void printAST(std::string prefix, std::string info_prefix) override {
+        std::cout << info_prefix << to_string() << std::endl;
+    }
+};
+using vardefPtr = std::unique_ptr<var_def>;
 
 #endif

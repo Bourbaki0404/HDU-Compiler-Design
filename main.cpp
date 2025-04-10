@@ -3,8 +3,11 @@
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
 
+int foo(int a[][1+2+3]) {
 
-int main (int argc, char* argv[]) {
+};
+
+int (main) (int argc, char* argv[]) {
     assert(argc == 2);
     const std::vector<token> &tokens = tokenize(readSrc(std::string(argv[1])));
 
@@ -20,7 +23,7 @@ int main (int argc, char* argv[]) {
     // const auto &table = computeLRTable(firstSets, start);
     // exportLRTableToCSV(table, "table.csv");
     LRTable table = importLRTableFromCSV("table.csv");
-    auto result = std::move(Parse(tokens, table, false));
+    auto result = std::move(Parse(tokens, table, true));
     if(result.parseTree == nullptr) {
         return -1;
     }
