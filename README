@@ -1,4 +1,4 @@
-# mini C Compiler
+# Mini Cpp Compiler 
 
 ### QuickStart
 
@@ -8,12 +8,13 @@
 
 ### Features:
 
-> 1. Handcraft scanner and rule-action style LL(1) Parser.
-> 2. Tree representation of program and statics checker.
+> 1. Handcrafted scanner
+> 2. Rule-action style LL(1) parser.
+> 3. Tree representation of program and statics checker with graceful error handling.
 
 ### ToDos:
 
 > 1. Single-inheritance classes and dynamic dispatch.
-> 2. Support other primitive datatypes like float and char.
-> 3. LLVM IR, RISC-V backend and IR optimizer.
+> 2. Support other primitive datatypes such as bool, float and char.
+> 3. LLVM IR, RISC-V backend and intermediate code optimizer.
 > 4. Overloading and type inference.

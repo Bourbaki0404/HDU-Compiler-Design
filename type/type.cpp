@@ -83,7 +83,7 @@ std::string ArrayType::to_string() {
         }
     } else {
         for (size_t i = 0; i < dims.size(); i++) {
-            res += "[" + (dims[i] ? std::to_string(dims[i]) : "") + "]";
+            res += "[" + (dims[i] ? std::to_string(dims[i]) : i == 0 ?  "" : "?") + "]";
         }
     }
     return res;

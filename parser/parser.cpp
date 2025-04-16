@@ -403,22 +403,21 @@ const std::vector<ruleAction> ruleWithAction = {
     }),
 
     ruleAction(rule(VarDef, {ID, VarDefGroup}),[](std::vector<parseInfoPtr>& children) {
-        
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
 
         std::string id = children[0]->str_val;
         var_def* arr = static_cast<var_def*>(children[1]->ptr.release());
         arr->setId(id);
+        arr->setLoc(children[0]->location);
         res->set_node(nodePtr(arr));
         return res;
     }),
     ruleAction(rule(VarDef, {ID, VarDefGroup, ASSIGN, InitVal}), [](std::vector<parseInfoPtr>& children) {
-        
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         std::string id = children[0]->str_val;
         var_def* arr = static_cast<var_def*>(children[1]->ptr.release());
         arr->setId(id);
-        arr->setLoc(res->location);
+        arr->setLoc(children[0]->location);
         arr->setInitVal(nodePtr(children[3]->ptr.release()));
         res->set_node(nodePtr(arr));
         return res;

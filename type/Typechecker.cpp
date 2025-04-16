@@ -128,7 +128,7 @@ analyzeInfo TypeChecker::analyze(lval_expr* node) {
 analyzeInfo TypeChecker::analyze(fun_call* node) {
     if(!symbolTable->exists(node->func_name)) {
         std::stringstream ss;
-        ss << "Function " << node->func_name << " is not bound";
+        ss << "Function '" << node->func_name << "' is not bound";
         TypeError(node, ss.str());
         node->inferred_type = HASERROR.type;
         return HASERROR;
@@ -137,10 +137,38 @@ analyzeInfo TypeChecker::analyze(fun_call* node) {
         node->args[i]->dispatch(this);
     }
     auto sym = symbolTable->getValue(node->func_name);
-    if(sym.kind != symbolKind::FUNCTION) {
-
+    if(sym.kind != FUNCTION || sym.type->kind != TypeKind::Function) {
+        std::stringstream ss;
+        ss  << "'" << node->func_name << "' is of type "
+            << sym.type->to_string() << ", which is not a function type";
+        TypeError(node, ss.str());
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
     }
-    return HASERROR;
+    FuncType *type = dynamic_cast<FuncType*>(sym.type);
+    if(type->argTypeList.size() != node->args.size()) {
+        std::stringstream ss;
+        ss  << "Function '" << node->func_name << "' has "
+            << type->argTypeList.size() << " arguments, but "
+            << node->args.size() << " is provided";
+        TypeError(node, ss.str());
+    }
+
+    for(size_t i = 0; i < node->args.size(); i++) {
+        if(!type->argTypeList[i]->equals(node->args[i]->inferred_type)) {
+            std::stringstream ss;
+            ss  << "The " << i << "th argument of function '" << node->func_name 
+            << "' is expected to have type "
+            << type->argTypeList[i]->to_string() << ", but "
+            << node->args[i]->inferred_type->to_string() << " is provided";
+            TypeError(node, ss.str());
+        }
+    }
+
+    node->inferred_type = type->retType.get();
+    return analyzeInfo{
+        .type = node->inferred_type
+    };
 }
 
 // ========================
@@ -389,6 +417,13 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
     }
     
     node->type->evaluate(this);
+    if(node->type->hasError) {
+        std::stringstream ss;
+        ss  << "The compile-time constant within this type " 
+            << node->type->to_string() + " cannot be fully evaluated";
+        TypeError(node, ss.str());
+        return analyzeInfo();
+    }
     // std::cout << "vardef:" + node->id + " " + node->type->to_string() << "\n";
     if(node->is_const) {
         node->type->setConst();
@@ -488,7 +523,13 @@ analyzeInfo TypeChecker::evaluate(ArrayType *node)
         if (node->pendingDims[size - i - 1]) {
             // evaluate pending dims into constants
             expr *p = node->pendingDims[size - i - 1].get();
-            p->dispatch(this);//typecheck before const_eval!
+            auto info1 = p->dispatch(this);//typecheck before const_eval!
+            if(!info1.type->equals(TypeFactory::getInt().get()) && !node->hasError) {
+                node->hasError = true;
+                std::stringstream ss;
+                ss << "The " << i << "th index of array type is not of integer type";
+                node->errorMsgs.push_back(ss.str());
+            }
             constInfo info = p->const_eval(this);
             if(info.is_const) {
                 if(info.type->equals(TypeFactory::getInt().release())) {
@@ -496,6 +537,12 @@ analyzeInfo TypeChecker::evaluate(ArrayType *node)
                 }
             } else {
                 node->dims.push_back(0);
+                if(!node->hasError) {
+                    node->hasError = true;
+                    std::stringstream ss;
+                    ss << "The " << i << "th index of array type is not a compile-time constant integer";
+                    node->errorMsgs.push_back(ss.str());
+                }
             }
 
         } else {

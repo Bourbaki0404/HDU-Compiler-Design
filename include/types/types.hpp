@@ -50,6 +50,9 @@ struct Type {
         TypeKind kind;    
         size_t size; //memory size
         bool is_const = false;
+    public:
+        std::vector<std::string> errorMsgs;
+        bool hasError = false;
 };
 using TypePtr = std::unique_ptr<struct Type>;
 
