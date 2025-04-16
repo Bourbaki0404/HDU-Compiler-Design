@@ -1,5 +1,11 @@
 # mini C Compiler
 
+### QuickStart
+
+> 1. The source program should be written at test.input.c
+> 2. Use <b>make test</b> for testing the compiler.
+> 3. All production rules are defined at parser/parser.cpp.
+
 ### Features:
 
 > 1. Handcraft scanner and rule-action style LL(1) Parser.
