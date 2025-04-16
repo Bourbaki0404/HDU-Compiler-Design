@@ -4,6 +4,10 @@
 #include "parser/parser.hpp"
 #include "types/TypeChecker.hpp"
 
+int f(int a) {
+    return 0;
+}
+
 int (main) (int argc, char* argv[]) {
     assert(argc == 2);
     const std::vector<token> &tokens = tokenize(readSrc(std::string(argv[1])));
@@ -29,5 +33,6 @@ int (main) (int argc, char* argv[]) {
     result.node->printAST("", "");
     ptr->dumpErrors(std::string(argv[1]));
     // visualizeAsTree(parsetree, "", true);
+    int f = 0;
     return 0;
 }

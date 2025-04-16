@@ -8,11 +8,13 @@ const analyzeInfo HASERROR = analyzeInfo {
 
 void TypeChecker::TypeError(node *ptr, const std::string &str) {
     if(ptr->error_msg == "") {
-        ptr->error_msg = RED + std::string("ERROR: ") + str + RESET;
+        ptr->error_msg = RED + std::string(" error: ") + RESET + str;
         std::stringstream ss;
-        ss  <<  ":"  
+        ss  << BOLD_BLACK
+            <<  ":"  
             <<  ptr->location.first << ":"
-            <<  ptr->location.second << ":";
+            <<  ptr->location.second << ":"
+            <<  RESET;
         errorMessages.push_back(ss.str() + ptr->error_msg);
     }
 }
@@ -40,9 +42,9 @@ analyzeInfo TypeChecker::analyze(binary_expr* node) {
         };
     }
     std::stringstream ss;
-    ss << "[Operator " << node->op << " cannot apply on type " 
+    ss << "Operator '" << node->op << "' cannot apply on type " 
        << info1.type->to_string() 
-       << " and " << info2.type->to_string() << "]";
+       << " and " << info2.type->to_string() << "";
     TypeError(node, ss.str());
     node->inferred_type = HASERROR.type;
     return HASERROR;
@@ -52,8 +54,8 @@ analyzeInfo TypeChecker::analyze(unary_expr* node) {
     auto info = node->operand->dispatch(this);
     if(!info.type->equals(TypeFactory::getInt().release())) {
         std::stringstream ss;
-        ss << "[Operator " << node->op << " cannot apply on type " 
-           << info.type->to_string() << "]";
+        ss << "Operator " << node->op << " cannot apply on type " 
+           << info.type->to_string() << "";
         TypeError(node, ss.str());
         node->inferred_type = HASERROR.type;
         return HASERROR;
@@ -66,37 +68,37 @@ analyzeInfo TypeChecker::analyze(unary_expr* node) {
 
 analyzeInfo TypeChecker::analyze(lval_expr* node) {
     if(!symbolTable->exists(node->id)) {
-        TypeError(node, "[Identifer not bound]");
+        TypeError(node, "Identifer '" + node->id + "' is not bound");
         node->inferred_type = HASERROR.type;
         return HASERROR;
     } 
     auto sym = symbolTable->getValue(node->id);
     if(sym.type->equals(HASERROR.type)) {
-        TypeError(node, "[Identifier is ill-typed]");
+        TypeError(node, "Identifer '" + node->id + "' is ill-typed");
         node->inferred_type = HASERROR.type;
         return HASERROR;
     }
     if(sym.kind == symbolKind::FUNCTION || sym.type->kind == TypeKind::Function) {
-        TypeError(node, "[Lval cannot be function]");
+        TypeError(node, "Lval cannot be function");
         node->inferred_type = HASERROR.type;
         return HASERROR;
     }
     if(sym.kind == symbolKind::CLASS_DEF) {
-        TypeError(node, "[Lval cannot be classname]");
+        TypeError(node, "Lval cannot be classname");
         node->inferred_type = HASERROR.type;
         return HASERROR;
     }
     if(sym.type->kind == TypeKind::Array) {
         ArrayType *type = dynamic_cast<ArrayType*>(sym.type);
         if(node->dims.size() > type->dims.size()) {
-            TypeError(node, "[Indexes mismatch the arrayType]");
+            TypeError(node, "Indexes mismatch the arrayType");
             node->inferred_type = HASERROR.type;
             return HASERROR;
         }
         for(size_t i = 0; i < node->dims.size(); i++) {
             auto info = node->dims[i]->dispatch(this);
             if(!info.type->equals(TypeFactory::getInt().get())) {
-                TypeError(node, "[Index is not integer]");
+                TypeError(node, "Index is not integer");
                 node->inferred_type = HASERROR.type;
                 return HASERROR;
             }
@@ -124,6 +126,20 @@ analyzeInfo TypeChecker::analyze(lval_expr* node) {
 }
 
 analyzeInfo TypeChecker::analyze(fun_call* node) {
+    if(!symbolTable->exists(node->func_name)) {
+        std::stringstream ss;
+        ss << "Function " << node->func_name << " is not bound";
+        TypeError(node, ss.str());
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    for(size_t i = 0; i < node->args.size(); i++) {
+        node->args[i]->dispatch(this);
+    }
+    auto sym = symbolTable->getValue(node->func_name);
+    if(sym.kind != symbolKind::FUNCTION) {
+
+    }
     return HASERROR;
 }
 
@@ -151,7 +167,7 @@ analyzeInfo TypeChecker::analyze(if_else_stmt* node) {
     loopDepth++;
     if(!info1.type->equals(TypeFactory::getInt().get())) {
         std::stringstream ss;
-        ss << "[The condition is of type " << info1.type->to_string() << ", which is not a numeric type]";
+        ss << "The condition is of type " << info1.type->to_string() << ", which is not a numeric type";
         TypeError(node, ss.str());
     }
     node->if_branch->dispatch(this);
@@ -164,7 +180,7 @@ analyzeInfo TypeChecker::analyze(while_stmt* node) {
     auto info1 = node->cond->dispatch(this);
     if(!info1.type->equals(TypeFactory::getInt().get())) {
         std::stringstream ss;
-        ss << "[The condition is of type " << info1.type->to_string() << ", which is not a numeric type]";
+        ss << "The condition is of type " << info1.type->to_string() << ", which is not a numeric type";
         TypeError(node, ss.str());
     }
     loopDepth++;
@@ -175,14 +191,14 @@ analyzeInfo TypeChecker::analyze(while_stmt* node) {
 
 analyzeInfo TypeChecker::analyze(break_stmt* node) {
     if(loopDepth == 0) {
-        TypeError(node, "[The break should be within loop]");
+        TypeError(node, "The break should be within loop");
     }
     return analyzeInfo();
 }
 
 analyzeInfo TypeChecker::analyze(continue_stmt* node) {
     if(loopDepth == 0) {
-        TypeError(node, "[The continue should be within loop]");
+        TypeError(node, "The continue should be within loop");
     }
     return analyzeInfo();
 }
@@ -191,9 +207,9 @@ analyzeInfo TypeChecker::analyze(return_stmt* node) {
     if(node->value == nullptr) {
         if(!currentFuncDef->type->retType->equals(TypeFactory::getVoid().release())) {
             std::stringstream ss;
-            ss  << "[The return value should be of type "
+            ss  << "The return value should be of type "
                 << currentFuncDef->type->retType->to_string()
-                << " and cannot be empty]";
+                << " and cannot be empty";
             TypeError(node, ss.str());
             return analyzeInfo();
         }
@@ -203,8 +219,8 @@ analyzeInfo TypeChecker::analyze(return_stmt* node) {
     auto info = node->value->dispatch(this);
     if(!currentFuncDef->type->retType->equals(info.type)) {
         std::stringstream ss;
-        ss << "[The return type should be " << currentFuncDef->type->retType->to_string()
-           << ", but the actual type is " << info.type->to_string() << "]";
+        ss << "The return type should be " << currentFuncDef->type->retType->to_string()
+           << ", but the actual type is " << info.type->to_string() << "";
         TypeError(node, ss.str());
         return HASERROR;
     }
@@ -233,7 +249,7 @@ analyzeInfo TypeChecker::analyze(func_def* node) {
 
     if(symbolTable->exists(node->name)) {
         std::stringstream ss;
-        ss << "[Function redefined in the global scope]";
+        ss << "Function redefined in the global scope";
         TypeError(node, ss.str());
         return HASERROR;
     }
@@ -266,9 +282,9 @@ analyzeInfo TypeChecker::analyze(func_def* node) {
     if(!node->type->retType->equals(TypeFactory::getVoid().get())) {
         if(!hasReturnStmt) {
             std::stringstream ss;
-            ss  << "[The return value should be of type "
+            ss  << "The return value should be of type "
                 << currentFuncDef->type->retType->to_string()
-                << " and cannot be empty]";
+                << " and cannot be empty";
             TypeError(node, ss.str());
         }
     }
@@ -363,7 +379,7 @@ normalization(init_val *ptr, std::vector<size_t> dims, Type *elementType, TypeCh
 analyzeInfo TypeChecker::analyze(var_def* node) {
     if(symbolTable->exists(node->id)) {
         std::stringstream ss;
-        ss << "[Variable redefined in the current scope]";
+        ss << "Variable redefined in the current scope";
         TypeError(node, ss.str());
         return analyzeInfo();
     }
@@ -383,13 +399,13 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
         if(node->type->kind == TypeKind::Int) {
             if(p->scalar == nullptr) {
                 std::stringstream ss;
-                ss << "[scalar can not be initialzed with a list]";
+                ss << "scalar can not be initialzed with a list";
                 TypeError(node, ss.str());
             } else {
                 auto info = p->scalar->dispatch(this);
                 if(!info.type->equals(node->type.get())) {
                     std::stringstream ss;
-                    ss << "[type mismatch in initialization, "
+                    ss << "type mismatch in initialization, "
                        << node->type->to_string() << " is not "
                        << info.type->to_string();
                     TypeError(node, ss.str());
@@ -402,7 +418,7 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
         if(node->type->kind == TypeKind::Array) {
             if(p->scalar != nullptr) {
                 std::stringstream ss;
-                ss << "[scalar can not be used to initialze an array]";
+                ss << "scalar can not be used to initialze an array";
                 TypeError(node, ss.str());
             } else {
                 ArrayType *type = dynamic_cast<ArrayType*>(node->type.get());
@@ -410,13 +426,13 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
                 switch (pair.second)
                 {
                     case NOTALIGNED:
-                        TypeError(node, "[Initialization list not correctly aligned]");
+                        TypeError(node, "Initialization list not correctly aligned");
                         break;
                     case OVERSIZE:
-                        TypeError(node, "[Initialization list is oversized]");
+                        TypeError(node, "Initialization list is oversized");
                         break;
                     case TYPEERROR:
-                        TypeError(node, "[Initialization list has type error]");
+                        TypeError(node, "Initialization list has type error");
                         break;
                 }
                 node->init_val = nodePtr(pair.first);
@@ -511,12 +527,12 @@ constInfo TypeChecker::const_eval(binary_expr *node)
 constInfo TypeChecker::const_eval(lval_expr *node)
 {
     if(!symbolTable->exists(node->id)) {
-        TypeError(node, "[The symbol name is not found]");
+        TypeError(node, "The symbol name is not found");
         return constInfo();
     } 
     Symbol sym = symbolTable->getValue(node->id);
     if(node->inferred_type->is_const == false) {
-        TypeError(node, "[The bound value is not known at compile time]");
+        TypeError(node, "The bound value is not known at compile time");
         return constInfo();
     } else if(node->inferred_type->equals(TypeFactory::getInt().get())) {
         if(node->dims.size() == 0) {
@@ -554,6 +570,6 @@ constInfo TypeChecker::const_eval(int_literal *node)
 
 void TypeChecker::dumpErrors(std::string path) {
     for(const auto &str : errorMessages) {
-        std::cout << path << str << std::endl;
+        std::cout << BOLD_BLACK << path << RESET << str << std::endl;
     }
 }
