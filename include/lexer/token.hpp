@@ -33,10 +33,11 @@ struct token {
         
         // Keywords
         KW_IF, KW_ELSE, KW_WHILE, KW_FOR,
-        KW_RETURN, KW_FUNCTION, KW_CLASS, 
+        KW_RETURN, KW_FUNCTION, KW_CLASS, KW_BREAK, KW_CONTINUE,
+
 
         // Type
-        KW_INT, KW_VOID, KW_FLOAT, KW_STRUCT, KW_CHAR,
+        KW_CONST, KW_INT, KW_VOID, KW_FLOAT, KW_STRUCT, KW_CHAR,
 
         // Special
         END_OF_FILE, INVALID

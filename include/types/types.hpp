@@ -2,6 +2,27 @@
 #define __TYPES_H
 
 #include "common/common.hpp"
+#include "types/TypeChecker.hpp"
+
+//forward decl
+struct node;
+struct program;
+struct expr;
+struct stmt;
+struct lval_expr;
+struct block_stmt;
+struct func_param;
+struct func_def;
+struct init_val;
+using progPtr = std::unique_ptr<program>;
+using nodePtr = std::unique_ptr<node>;
+using expPtr = std::unique_ptr<expr>;
+using lvalPtr = std::unique_ptr<lval_expr>;
+using stmtPtr = std::unique_ptr<stmt>;
+using blockPtr = std::unique_ptr<block_stmt>;
+using funcparamPtr = std::unique_ptr<func_param>;
+using funcDefPtr = std::unique_ptr<func_def>;  
+using initValPtr = std::unique_ptr<init_val>;
 
 enum TypeKind {
     Int,
@@ -11,149 +32,125 @@ enum TypeKind {
     Void,
     Array,
     Pointer,
-    Struct,
-    Function
+    Class,
+    Function,
+    Error // when type error happens
 };
 
 struct Type {
     public:
-        Type(TypeKind kind)
-        :kind(kind){}
-        Type(TypeKind kind, size_t size)
-        : kind(kind), size(size) {}
-
+        Type(TypeKind kind);
+        Type(TypeKind kind, size_t size);
         virtual std::string to_string() = 0;
         virtual bool equals(Type* other) = 0;
-        void setConst(bool is_const) {
-            this->is_const == is_const;
-        }
+        virtual void setConst() = 0;
+        virtual void evaluate(TypeChecker *ptr) = 0;
 
     public:
         TypeKind kind;    
         size_t size; //memory size
-        bool is_const;
+        bool is_const = false;
 };
 using TypePtr = std::unique_ptr<struct Type>;
 
 struct PrimitiveType : Type {
     public:
-        PrimitiveType(TypeKind kind, size_t size)
-        : Type(kind, size) {}
-
-        bool equals(Type* other) override {
-            return kind == other->kind;
-        }
-
-        std::string to_string() override {
-            switch(kind) {
-                case TypeKind::Void: return "void";
-                case TypeKind::Int: return "int";
-                case TypeKind::Float: return "float";
-                case TypeKind::Char: return "char";
-                case TypeKind::Bool: return "bool";
-                default: return "unknown";
-            }
-        }
+        PrimitiveType(TypeKind kind, size_t size);
+        bool equals(Type* other) override;
+        std::string to_string() override;
+        void evaluate(TypeChecker *ptr) override;
+        void setConst() override;
     public:
+};
 
+struct ErrorType : Type {
+    ErrorType();
+    bool equals(Type* other) override;
+    std::string to_string() override;
+    void evaluate(TypeChecker *ptr) override;
+    void setConst() override;  
 };
 
 struct ArrayType : public Type {
-    ArrayType()
-    :Type(TypeKind::Array) {}
-
-    void setBaseTypeAndReverse(TypePtr ptr) {
-        element_type = std::move(ptr);
-        std::reverse(dims.begin(), dims.end());
-    }
-
-    void addDim(size_t n) {
-        dims.push_back(n);
-    }
-
-    std::string to_string() override {
-        std::string res = element_type ? element_type->to_string() : "";
-        for(size_t i = 0; i < dims.size(); i++) {
-            res += "[" + (dims[i] ? std::to_string(dims[i]) : "") + "]";
-        }
-        return res;
-    }
-
-    bool equals(Type* other) override {
-        if(other == nullptr) return false;
-        if(other->kind != TypeKind::Array) return false;
-        ArrayType* ptr = static_cast<ArrayType*>(other);
-        if(!element_type->equals(ptr->element_type.get()))
-            return false;
-        if(dims.size() != ptr->dims.size()) {
-            return false;
-        }
-        for(size_t i = 0; i < dims.size(); i++) {
-            if(dims[i] != ptr->dims[i]) return false;
-        }
-        return true;
-    }
-
+    ArrayType();
+    void setBaseTypeAndReverse(TypePtr ptr);
+    void addDim(expPtr p);
+    // evaluate all pending indexes into integers
+    void evaluate(TypeChecker *ptr);
+    std::string to_string() override;
+    void printUnevaludatedType(std::string prefix, std::string info_prefix);
+    bool equals(Type* other) override;
+    void setConst();
     TypeKind kind;
+    std::vector<expPtr> pendingDims;
     std::vector<size_t> dims;
     TypePtr element_type;
 };
 
+struct FuncType : public Type {
+    FuncType();
+    void setRetTypeAndReverse(TypePtr ptr);
+    void setRetType(TypePtr ptr);
+    void addArgType(TypePtr argType);
+    void setConst() override;
+    bool equals(Type *other);
+    std::string to_string() override;
+    void evaluate(TypeChecker *ptr) override;
+    TypeKind kind = TypeKind::Function;
+    TypePtr retType = nullptr;
+    std::vector<TypePtr> argTypeList;
+};
+
+using FuncTypePtr = std::unique_ptr<FuncType>;
+
+enum AccessSpecifier {
+    PUBLIC, PRIVATE
+};
+
+
+
+// Field & Method Metadata
+struct FieldInfo {
+    std::string name;
+    TypePtr type;
+    AccessSpecifier access;
+};
+
+struct MethodInfo {
+    std::string name;
+    TypePtr type;
+    bool isVirtual;
+    bool isOverride;    // Marks if it overrides a base method
+    AccessSpecifier access;
+};
+
+struct ClassType : Type {
+    ClassType(std::string name, std::string base);
+    std::string to_string() override;
+    bool equals(Type* other) override;
+    void evaluate(TypeChecker *ptr) override;
+    void setConst() override;
+    std::string name;
+    std::string baseClass;                  // Single parent (empty if none)
+    // The class scope
+    std::unordered_map<std::string, FieldInfo> fields;          // Member variables
+    std::unordered_map<std::string, MethodInfo> methods;        // Member functions
+    TypeKind kind = TypeKind::Class;
+    bool isPolymorphic = false;             // Has virtual methods?
+};
+
+
 struct TypeFactory {
     public:
-        static TypePtr getTypeFromName(const std::string& type_name) {
-            static const std::unordered_map<std::string, TypeKind> type_map = {
-                {"void", TypeKind::Void},
-                {"int", TypeKind::Int},
-                {"float", TypeKind::Float},
-                {"char", TypeKind::Char},
-                {"bool", TypeKind::Bool}
-            };
-
-            auto it = type_map.find(type_name);
-            if (it == type_map.end()) {
-                throw std::runtime_error("Unknown type name: " + type_name);
-            }
-
-            TypePtr type;
-            switch (it->second) {
-                case TypeKind::Void: 
-                    type = TypeFactory::getVoid();
-                    break;
-                case TypeKind::Int:
-                    type = TypeFactory::getInt();
-                    break;
-                case TypeKind::Float:
-                    type = TypeFactory::getFloat();
-                    break;
-                case TypeKind::Char:
-                    type = TypeFactory::getChar();
-                    break;
-                case TypeKind::Bool:
-                    type = TypeFactory::getBool();
-                    break;
-                default:
-                    throw std::runtime_error("Unhandled type in mapper: " + type_name);
-            }
-            return type;
-        }
-        static TypePtr getVoid() { return makePrimitive(TypeKind::Void, 0); }
-        static TypePtr getInt() { return makePrimitive(TypeKind::Int, 4); }
-        static TypePtr getFloat() { return makePrimitive(TypeKind::Float, 4); }
-        static TypePtr getChar() { return makePrimitive(TypeKind::Char, 1); }
-        static TypePtr getBool() { return makePrimitive(TypeKind::Bool, 1); }
-
-        // TypePtr getPointer(TypePtr pointee) {
-        //     return std::make_unique<PointerType>(std::move(pointee));
-        // }
-
-        static TypePtr getArray() {
-            return std::unique_ptr<ArrayType>(new ArrayType());
-        }
+        static TypePtr getTypeFromName(const std::string& type_name);
+        static TypePtr getVoid();
+        static TypePtr getInt();
+        static TypePtr getFloat(); 
+        static TypePtr getChar();
+        static TypePtr getBool();
+        static TypePtr getArray();
     private:
-        static TypePtr makePrimitive(TypeKind kind, size_t size) {
-            return TypePtr(new PrimitiveType(kind, size));
-        }
+        static TypePtr makePrimitive(TypeKind kind, size_t size);
 };
 
 #endif

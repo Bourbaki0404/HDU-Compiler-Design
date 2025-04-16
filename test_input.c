@@ -1,14 +1,13 @@
-// test comment
+void f(){return;}
 int main(int a[][2][3], int b){
-    a[2][3][4];
-
-    int a[1];
-    // int b = 4;
-    //a = b + a;
-    /*/*
-    b = 1;
-
-        // b = 2
-    */
-    // return 0;
+    int arr[2][3][4] = {{1,2,3,4,b,6,1,2 + x,3,4,5,2}};
+    arr[4];
+    int d = {2, 3};
+    e;
+    if(arr) {
+        while(arr) {}
+        break;
+    }
+    break;
+    int d = 2;
 }

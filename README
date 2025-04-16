@@ -1,0 +1,13 @@
+# mini C Compiler
+
+### Features:
+
+> 1. Handcraft scanner and rule-action style LL(1) Parser.
+> 2. Tree representation of program and statics checker.
+
+### ToDos:
+
+> 1. Single-inheritance classes and dynamic dispatch.
+> 2. Support other primitive datatypes like float and char.
+> 3. LLVM IR, RISC-V backend and IR optimizer.
+> 4. Overloading and type inference.

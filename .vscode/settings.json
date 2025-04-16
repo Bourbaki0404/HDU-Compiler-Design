@@ -71,7 +71,17 @@
         "typeinfo": "cpp",
         "variant": "cpp",
         "csignal": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "cassert": "cpp",
+        "cerrno": "cpp",
+        "cfloat": "cpp",
+        "ciso646": "cpp",
+        "climits": "cpp",
+        "ios": "cpp",
+        "locale": "cpp",
+        "queue": "cpp",
+        "stack": "cpp",
+        "version": "cpp"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }

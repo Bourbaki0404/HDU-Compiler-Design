@@ -42,6 +42,8 @@ const std::map<std::string, token::tokenType> keywords = {
     {"for", token::KW_FOR},
     {"return", token::KW_RETURN},
     {"function", token::KW_FUNCTION},
+    {"break", token::KW_BREAK},
+    {"continue", token::KW_CONTINUE},
 
     //Class
     {"class", token::KW_CLASS},
@@ -51,7 +53,8 @@ const std::map<std::string, token::tokenType> keywords = {
     {"int", token::KW_INT},
     {"void", token::KW_VOID},
     {"float", token::KW_FLOAT},
-    {"char", token::KW_CHAR}
+    {"char", token::KW_CHAR},
+    {"const", token::KW_CONST}
 };
 
 const std::map<std::string, token::tokenType> separators = {
@@ -104,6 +107,7 @@ size_t read_operator(const std::string &code, size_t start) {
 }
 
 bool is_keyword(std::string str) {
+    std::cout << str << keywords.count(str) << "\n";
     return keywords.count(str) > 0;
 }
 
@@ -144,6 +148,7 @@ std::string token_serialize(const token& token) {
         {token::KW_CLASS, "CLASS"}, {token::KW_STRUCT, "STRUCT"},
         {token::KW_INT, "INT"}, {token::KW_VOID, "VOID"},
         {token::KW_FLOAT, "FLOAT"}, {token::KW_CHAR, "CHAR"},
+        {token::KW_CONST, "CONST"}, {token::KW_BREAK, "BREAK"}, {token::KW_CONTINUE, "CONTINUE"},
 
         // Special
         {token::END_OF_FILE, "EOF"}, {token::INVALID, "INVALID"}
@@ -167,7 +172,7 @@ std::string token_serialize(const token& token) {
 
 
 std::vector<token> tokenize(const std::string &code) {
-    size_t row = 0, col = 0, i = 0;
+    size_t row = 1, col = 1, i = 0;
     std::vector<token> tokens;
     
     while(i != code.size()) {
@@ -182,7 +187,7 @@ std::vector<token> tokenize(const std::string &code) {
         } else if(cur == '\n') {
             i++;
             row++;
-            col = 0;
+            col = 1;
         } else if(isalpha(cur) || cur == '_'){
             size_t end = read_id_keyword(code, i);
             std::string str = code.substr(i, end - i);

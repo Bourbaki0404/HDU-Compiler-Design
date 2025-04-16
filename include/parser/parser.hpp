@@ -37,7 +37,7 @@ enum symbolType {
     
     // Keywords
     KW_IF, KW_ELSE, KW_WHILE, KW_FOR,
-    KW_RETURN, KW_FUNCTION, KW_CLASS, KW_BREAK, KW_CONTINUE, KW_CONST,
+    KW_RETURN, KW_FUNCTION, KW_CLASS, KW_BREAK, KW_CONTINUE, KW_CONST, 
 
     // Type
     KW_INT, KW_VOID, KW_FLOAT, KW_STRUCT, KW_CHAR,
@@ -68,8 +68,8 @@ struct parseInfo {
         parseInfo(parseInfo& p)
         : str_val(p.str_val), type(p.type), location(p.location), ptr(std::move(p.ptr)) {}
 
-        parseInfo(size_t row, size_t col)
-        : location({row, col}) {}
+        parseInfo(std::pair<size_t, size_t> pair)
+        : location(pair) {}
 
         void set_str(std::string str_val) {
             this->str_val = str_val;

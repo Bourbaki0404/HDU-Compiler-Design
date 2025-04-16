@@ -8,21 +8,25 @@ PARSER_DIR = ./parser
 BUILD_DIR = ./build
 SRC_DIR = .
 AST_DIR = ./astnode
+TYPES_DIR = ./type
+SYMTABLE_DIR = ./symbolTable
 
 # Source files
 MAIN_SOURCE = $(SRC_DIR)/main.cpp
 LEXER_SOURCES = $(wildcard $(LEXER_DIR)/*.cpp)
 PARSER_SOURCES = $(wildcard $(PARSER_DIR)/*.cpp)
-AST_SOURCES = $(wildcard $(AST_DIR)/*cpp)
-SOURCES = $(MAIN_SOURCE) $(LEXER_SOURCES) $(PARSER_SOURCES) $(AST_SOURCES)
+AST_SOURCES = $(wildcard $(AST_DIR)/*.cpp)
+TYPES_SOURCES = $(wildcard $(TYPES_DIR)/*.cpp)
+SYMTABLE_SOURCES = $(wildcard $(SYMTABLE_DIR)/*.cpp)
+SOURCES = $(MAIN_SOURCE) $(LEXER_SOURCES) $(PARSER_SOURCES) $(AST_SOURCES) $(TYPES_SOURCES) $(SYMTABLE_SOURCES)
 
 # Object files
 OBJECTS = $(BUILD_DIR)/main.o \
           $(patsubst $(LEXER_DIR)/%.cpp,$(BUILD_DIR)/lexer/%.o,$(LEXER_SOURCES)) \
-          $(patsubst $(PARSER_DIR)/%.cpp,$(BUILD_DIR)/parser/%.o,$(PARSER_SOURCES))\
-		  $(patsubst $(AST_DIR)/%.cpp,$(BUILD_DIR)/astnode/%.o,$(AST_SOURCES))\
-
-
+          $(patsubst $(PARSER_DIR)/%.cpp,$(BUILD_DIR)/parser/%.o,$(PARSER_SOURCES)) \
+          $(patsubst $(AST_DIR)/%.cpp,$(BUILD_DIR)/astnode/%.o,$(AST_SOURCES)) \
+          $(patsubst $(TYPES_DIR)/%.cpp,$(BUILD_DIR)/types/%.o,$(TYPES_SOURCES)) \
+          $(patsubst $(SYMTABLE_DIR)/%.cpp,$(BUILD_DIR)/symbolTable/%.o,$(SYMTABLE_SOURCES))
 
 # Targets
 .PHONY: all clean compiler test
@@ -30,11 +34,11 @@ OBJECTS = $(BUILD_DIR)/main.o \
 all: compiler
 
 # Create build directory structure
-$(BUILD_DIR)/lexer $(BUILD_DIR)/parser $(BUILD_DIR)/astnode:
+$(BUILD_DIR)/lexer $(BUILD_DIR)/parser $(BUILD_DIR)/astnode $(BUILD_DIR)/types $(BUILD_DIR)/symbolTable:
 	mkdir -p $@
 
 # Main compiler executable
-compiler: $(BUILD_DIR)/lexer $(BUILD_DIR)/parser $(BUILD_DIR)/astnode $(OBJECTS)
+compiler: $(BUILD_DIR)/lexer $(BUILD_DIR)/parser $(BUILD_DIR)/astnode $(BUILD_DIR)/types $(BUILD_DIR)/symbolTable $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $(BUILD_DIR)/compiler $(OBJECTS)
 
 # Main source file
@@ -51,6 +55,14 @@ $(BUILD_DIR)/parser/%.o: $(PARSER_DIR)/%.cpp
 
 # AST source files
 $(BUILD_DIR)/astnode/%.o: $(AST_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Types source files
+$(BUILD_DIR)/types/%.o: $(TYPES_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Symbol Table source files
+$(BUILD_DIR)/symbolTable/%.o: $(SYMTABLE_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Test target

@@ -1,0 +1,559 @@
+#include "parser/astnodes/node.hpp"
+#include "types/TypeChecker.hpp"
+#include "symbolTable/symbolTable.hpp"
+
+const analyzeInfo HASERROR = analyzeInfo {
+    .type = new ErrorType(),
+};
+
+void TypeChecker::TypeError(node *ptr, const std::string &str) {
+    if(ptr->error_msg == "") {
+        ptr->error_msg = RED + std::string("ERROR: ") + str + RESET;
+        std::stringstream ss;
+        ss  <<  ":"  
+            <<  ptr->location.first << ":"
+            <<  ptr->location.second << ":";
+        errorMessages.push_back(ss.str() + ptr->error_msg);
+    }
+}
+
+TypeChecker::TypeChecker()
+{
+    symbolTable = new SymbolTable();
+    loopDepth = 0;
+}
+
+// ========================
+// Expression Nodes
+// ========================
+
+analyzeInfo TypeChecker::analyze(binary_expr* node) {
+    auto info1 = node->left->dispatch(this);
+    auto info2 = node->right->dispatch(this);
+
+    if(info1.type->equals(TypeFactory::getInt().release()) &&
+                info2.type->equals(TypeFactory::getInt().release())) {
+        std::cout << "TypeCheckPass at (" << node->location.first << "," << node->location.second << ")" << std::endl;
+        node->inferred_type = TypeFactory::getInt().release();
+        return analyzeInfo{
+            .type = node->inferred_type,
+        };
+    }
+    std::stringstream ss;
+    ss << "[Operator " << node->op << " cannot apply on type " 
+       << info1.type->to_string() 
+       << " and " << info2.type->to_string() << "]";
+    TypeError(node, ss.str());
+    node->inferred_type = HASERROR.type;
+    return HASERROR;
+}
+
+analyzeInfo TypeChecker::analyze(unary_expr* node) {
+    auto info = node->operand->dispatch(this);
+    if(!info.type->equals(TypeFactory::getInt().release())) {
+        std::stringstream ss;
+        ss << "[Operator " << node->op << " cannot apply on type " 
+           << info.type->to_string() << "]";
+        TypeError(node, ss.str());
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    node->inferred_type = TypeFactory::getInt().release();
+    return analyzeInfo{
+        .type = node->inferred_type
+    };
+}
+
+analyzeInfo TypeChecker::analyze(lval_expr* node) {
+    if(!symbolTable->exists(node->id)) {
+        TypeError(node, "[Identifer not bound]");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    } 
+    auto sym = symbolTable->getValue(node->id);
+    if(sym.type->equals(HASERROR.type)) {
+        TypeError(node, "[Identifier is ill-typed]");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    if(sym.kind == symbolKind::FUNCTION || sym.type->kind == TypeKind::Function) {
+        TypeError(node, "[Lval cannot be function]");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    if(sym.kind == symbolKind::CLASS_DEF) {
+        TypeError(node, "[Lval cannot be classname]");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    if(sym.type->kind == TypeKind::Array) {
+        ArrayType *type = dynamic_cast<ArrayType*>(sym.type);
+        if(node->dims.size() > type->dims.size()) {
+            TypeError(node, "[Indexes mismatch the arrayType]");
+            node->inferred_type = HASERROR.type;
+            return HASERROR;
+        }
+        for(size_t i = 0; i < node->dims.size(); i++) {
+            auto info = node->dims[i]->dispatch(this);
+            if(!info.type->equals(TypeFactory::getInt().get())) {
+                TypeError(node, "[Index is not integer]");
+                node->inferred_type = HASERROR.type;
+                return HASERROR;
+            }
+        }
+        if(node->dims.size() == type->dims.size()) { //primitive type
+            node->inferred_type = type->element_type.get();
+            return analyzeInfo{
+                .type = node->inferred_type
+            };
+        }
+        ArrayType *new_type = new ArrayType();
+        new_type->setBaseTypeAndReverse(TypePtr(type->element_type.get()));
+        for(size_t i = 0; i < type->dims.size() - node->dims.size(); i++) {
+            new_type->dims.push_back(type->dims[i]);
+        }
+        node->inferred_type = new_type;
+        return analyzeInfo{
+            .type = node->inferred_type
+        };
+    } 
+    node->inferred_type = sym.type;
+    return analyzeInfo{
+        .type = sym.type
+    };
+}
+
+analyzeInfo TypeChecker::analyze(fun_call* node) {
+    return HASERROR;
+}
+
+// ========================
+// Literal Nodes
+// ========================
+
+analyzeInfo TypeChecker::analyze(int_literal* node) {
+    node->inferred_type = TypeFactory::getInt().release();
+    return analyzeInfo{
+        .type = node->inferred_type
+    };
+}
+
+// ========================
+// Statement Nodes
+// ========================
+
+analyzeInfo TypeChecker::analyze(expr_stmt* node) {
+    return node->ptr->dispatch(this);
+}
+
+analyzeInfo TypeChecker::analyze(if_else_stmt* node) {
+    auto info1 = node->cond->dispatch(this);
+    loopDepth++;
+    if(!info1.type->equals(TypeFactory::getInt().get())) {
+        std::stringstream ss;
+        ss << "[The condition is of type " << info1.type->to_string() << ", which is not a numeric type]";
+        TypeError(node, ss.str());
+    }
+    node->if_branch->dispatch(this);
+    if(node->else_branch) node->else_branch->dispatch(this);
+    loopDepth--;
+    return analyzeInfo();
+}
+
+analyzeInfo TypeChecker::analyze(while_stmt* node) {
+    auto info1 = node->cond->dispatch(this);
+    if(!info1.type->equals(TypeFactory::getInt().get())) {
+        std::stringstream ss;
+        ss << "[The condition is of type " << info1.type->to_string() << ", which is not a numeric type]";
+        TypeError(node, ss.str());
+    }
+    loopDepth++;
+    node->body->dispatch(this);
+    loopDepth--;
+    return analyzeInfo();
+}
+
+analyzeInfo TypeChecker::analyze(break_stmt* node) {
+    if(loopDepth == 0) {
+        TypeError(node, "[The break should be within loop]");
+    }
+    return analyzeInfo();
+}
+
+analyzeInfo TypeChecker::analyze(continue_stmt* node) {
+    if(loopDepth == 0) {
+        TypeError(node, "[The continue should be within loop]");
+    }
+    return analyzeInfo();
+}
+
+analyzeInfo TypeChecker::analyze(return_stmt* node) {
+    if(node->value == nullptr) {
+        if(!currentFuncDef->type->retType->equals(TypeFactory::getVoid().release())) {
+            std::stringstream ss;
+            ss  << "[The return value should be of type "
+                << currentFuncDef->type->retType->to_string()
+                << " and cannot be empty]";
+            TypeError(node, ss.str());
+            return analyzeInfo();
+        }
+        std::cout << "Type deduction PASS for Return\n";
+        return analyzeInfo();
+    }
+    auto info = node->value->dispatch(this);
+    if(!currentFuncDef->type->retType->equals(info.type)) {
+        std::stringstream ss;
+        ss << "[The return type should be " << currentFuncDef->type->retType->to_string()
+           << ", but the actual type is " << info.type->to_string() << "]";
+        TypeError(node, ss.str());
+        return HASERROR;
+    }
+    std::cout << "Type deduction PASS for Return\n";
+    return analyzeInfo();
+}
+
+analyzeInfo TypeChecker::analyze(block_stmt* node) {
+    symbolTable->beginScope();
+    for(size_t i = 0; i < node->items.size(); i++) {
+        node->items[i]->dispatch(this);
+    }
+    symbolTable->endScope();
+    return analyzeInfo();
+}
+
+// ========================
+// Declaration/Definition Nodes
+// ========================
+
+analyzeInfo TypeChecker::analyze(func_def* node) {
+    std::cout << "Entering function: " << node->name << "\n";
+    FuncType *p = new FuncType();
+
+    currentFuncDef = node;
+
+    if(symbolTable->exists(node->name)) {
+        std::stringstream ss;
+        ss << "[Function redefined in the global scope]";
+        TypeError(node, ss.str());
+        return HASERROR;
+    }
+
+    symbolTable->beginScope();
+
+
+    for(size_t i = 0; i < node->params.size(); i++) {
+        node->params[i]->type->evaluate(this);
+        // std::cout << "Arg(" << i << ") type " << node->params[i]->type->to_string() << "\n";
+        symbolTable->insert(node->params[i]->id, 
+        Symbol{
+            .kind = VARIABLE,
+            .type = node->params[i]->type.get()
+        });
+        p->addArgType(std::move(node->params[i]->type));
+    }
+    p->setRetType(std::move(node->ret_type));
+    node->type = p;
+    // std::cout << p->to_string() << "\n";
+    // symbolTable->printCurScope();
+
+    bool hasReturnStmt = false;
+    for(size_t i = 0; i < node->body.size(); i++) {
+        node->body[i]->dispatch(this);
+        if(node->kind == ASTKind::Return_Stmt) {
+            hasReturnStmt = true;
+        }
+    }
+    if(!node->type->retType->equals(TypeFactory::getVoid().get())) {
+        if(!hasReturnStmt) {
+            std::stringstream ss;
+            ss  << "[The return value should be of type "
+                << currentFuncDef->type->retType->to_string()
+                << " and cannot be empty]";
+            TypeError(node, ss.str());
+        }
+    }
+
+    // symbolTable->printCurScope();
+    symbolTable->endScope();
+
+    symbolTable->insert(node->name, Symbol{.kind = FUNCTION,
+                                           .type = p,
+                                           .data = nullptr});
+    symbolTable->printCurScope();
+    currentFuncDef = nullptr;
+    return analyzeInfo();
+}
+
+// Fill all holes within initialization list with default ctor
+enum InitializationStatus {
+    SUCCESS,
+    NOTALIGNED,
+    OVERSIZE,
+    TYPEERROR
+};
+
+std::pair<init_val*, InitializationStatus> 
+normalization(init_val *ptr, std::vector<size_t> dims, Type *elementType, TypeChecker *tc) 
+{
+    init_val *result = new init_val(std::pair<size_t,size_t>(0, 0));
+    size_t pos = 0;
+
+    for(size_t i = 0; i < ptr->children.size(); i++) {
+        init_val *child = ptr->children[i].get();
+        if(child->scalar) {
+            child->scalar->dispatch(tc); //tc before use inferred type
+            
+            if(elementType->equals(child->scalar->inferred_type)) {
+                   
+                init_val *new_child = new init_val(std::pair<size_t,size_t>(0, 0));
+                
+                new_child->scalar = std::move(child->scalar);
+                
+                result->addChild(initValPtr(new_child));
+                pos++;
+            } else {
+                //tc error
+                return {result, TYPEERROR};
+            }
+        } else { //handling list
+            if(pos % dims.back() == 0) {
+                size_t temp = pos;
+                size_t size = 1;
+                std::vector<size_t> dims_2;
+                for(size_t dim = 0; dim < dims.size() - 1; dim++) {
+                    if(temp % dims[dims.size() - dim - 1]) break;
+                    size_t length = dims[dims.size() - dim - 1];
+                    size *= length;
+                    temp /= length;
+                    dims_2.push_back(length);
+                }
+                std::reverse(dims_2.begin(), dims_2.end());
+                auto pair = normalization(child, dims_2, elementType, tc);
+                if(pair.second != SUCCESS) {
+                    return {result, pair.second};
+                }
+                init_val *subarray = pair.first;
+                for(auto &item : subarray->children) {
+                    result->addChild(std::move(item));
+                }
+                pos += size;
+            } else { //not aligned
+                return {result, NOTALIGNED};
+            }
+        }
+    }
+    size_t size = 1;
+    for(size_t i = 0; i < dims.size(); i++) {
+        size *= dims[i];
+    }
+    std::cout << "SIZE:" << size << "\n";
+    if(pos > size) {
+        return {result, OVERSIZE};
+    }
+    for(size_t i = pos; i < size; i++) {
+        init_val *new_child = new init_val(std::pair<size_t,size_t>(0, 0));
+        int_literal *val = new int_literal(std::pair<size_t,size_t>(0, 0), 0);
+        new_child->scalar = expPtr(static_cast<expr*>(val));
+        new_child->scalar->dispatch(tc);
+        result->addChild(initValPtr(new_child));
+    }
+    return {result, SUCCESS};
+}
+
+analyzeInfo TypeChecker::analyze(var_def* node) {
+    if(symbolTable->exists(node->id)) {
+        std::stringstream ss;
+        ss << "[Variable redefined in the current scope]";
+        TypeError(node, ss.str());
+        return analyzeInfo();
+    }
+    if(node->type->equals(TypeFactory::getVoid().release())) {
+        std::cout << "Invalid use of type 'void' in variable declaration at (" << node->location.first 
+        << "," << node->location.second << ")" << std::endl;
+    }
+    
+    node->type->evaluate(this);
+    // std::cout << "vardef:" + node->id + " " + node->type->to_string() << "\n";
+    if(node->is_const) {
+        node->type->setConst();
+    }
+    
+    if(node->init_val) {
+        init_val *p = static_cast<init_val*>(node->init_val.get());
+        if(node->type->kind == TypeKind::Int) {
+            if(p->scalar == nullptr) {
+                std::stringstream ss;
+                ss << "[scalar can not be initialzed with a list]";
+                TypeError(node, ss.str());
+            } else {
+                auto info = p->scalar->dispatch(this);
+                if(!info.type->equals(node->type.get())) {
+                    std::stringstream ss;
+                    ss << "[type mismatch in initialization, "
+                       << node->type->to_string() << " is not "
+                       << info.type->to_string();
+                    TypeError(node, ss.str());
+                } else {
+                    //success
+                }
+            }
+        }
+        
+        if(node->type->kind == TypeKind::Array) {
+            if(p->scalar != nullptr) {
+                std::stringstream ss;
+                ss << "[scalar can not be used to initialze an array]";
+                TypeError(node, ss.str());
+            } else {
+                ArrayType *type = dynamic_cast<ArrayType*>(node->type.get());
+                auto pair = normalization(p, type->dims, type->element_type.get(), this);
+                switch (pair.second)
+                {
+                    case NOTALIGNED:
+                        TypeError(node, "[Initialization list not correctly aligned]");
+                        break;
+                    case OVERSIZE:
+                        TypeError(node, "[Initialization list is oversized]");
+                        break;
+                    case TYPEERROR:
+                        TypeError(node, "[Initialization list has type error]");
+                        break;
+                }
+                node->init_val = nodePtr(pair.first);
+            }
+        }
+    }
+
+    symbolTable->insert(node->id, 
+    Symbol{
+        .kind = symbolKind::VARIABLE,
+        .type = node->type.get(),
+        .data = nullptr
+    });
+    symbolTable->printCurScope();
+
+    return analyzeInfo();
+}
+
+analyzeInfo TypeChecker::analyze(var_decl* node) {
+    for(size_t i = 0; i < node->defs.size(); i ++) {
+        node->defs[i]->dispatch(this);
+    }
+    return analyzeInfo();
+}
+
+analyzeInfo TypeChecker::analyze(func_param* node) {
+    return analyzeInfo();
+}
+
+// ========================
+// Program Node
+// ========================
+
+analyzeInfo TypeChecker::analyze(program* node) {
+    for(size_t i = 0; i < node->children.size(); i++) {
+        node->children[i]->dispatch(this);
+    }
+    return analyzeInfo();
+}
+
+// ========================
+// Initialization Node
+// ========================
+
+analyzeInfo TypeChecker::analyze(init_val* node) {
+    return analyzeInfo();
+}
+analyzeInfo TypeChecker::evaluate(ArrayType *node)
+{
+    size_t size = node->pendingDims.size();
+    for (size_t i = 0; i < size; i++) {
+        
+        if (node->pendingDims[size - i - 1]) {
+            // evaluate pending dims into constants
+            expr *p = node->pendingDims[size - i - 1].get();
+            p->dispatch(this);//typecheck before const_eval!
+            constInfo info = p->const_eval(this);
+            if(info.is_const) {
+                if(info.type->equals(TypeFactory::getInt().release())) {
+                    node->dims.push_back(*(int*)info.value);
+                }
+            } else {
+                node->dims.push_back(0);
+            }
+
+        } else {
+            node->dims.push_back(0);
+        }
+    }
+    node->pendingDims.clear();
+    return analyzeInfo();
+}
+
+analyzeInfo TypeChecker::evaluate(FuncType *node)
+{
+    for(size_t i = 0; i < node->argTypeList.size(); i++) {
+        node->argTypeList[i]->evaluate(this);
+    }
+    return analyzeInfo();
+}
+
+constInfo TypeChecker::const_eval(unary_expr *ptr)
+{
+    return constInfo();
+}
+
+constInfo TypeChecker::const_eval(binary_expr *node)
+{
+    return constInfo();
+}
+
+constInfo TypeChecker::const_eval(lval_expr *node)
+{
+    if(!symbolTable->exists(node->id)) {
+        TypeError(node, "[The symbol name is not found]");
+        return constInfo();
+    } 
+    Symbol sym = symbolTable->getValue(node->id);
+    if(node->inferred_type->is_const == false) {
+        TypeError(node, "[The bound value is not known at compile time]");
+        return constInfo();
+    } else if(node->inferred_type->equals(TypeFactory::getInt().get())) {
+        if(node->dims.size() == 0) {
+            return constInfo{
+                .is_const = true,
+                .value = sym.data,
+                .type = node->inferred_type
+            };
+        }
+    } else if(node->inferred_type->kind == TypeKind::Array) {
+        
+    }
+    return constInfo();
+}
+
+constInfo TypeChecker::const_eval(fun_call *node)
+{
+    return constInfo {
+        .is_const = false,
+        .value = nullptr,
+        .type = HASERROR.type
+    };
+}
+
+//typecheck before const_eval!
+constInfo TypeChecker::const_eval(int_literal *node)
+{
+    node->inferred_type = TypeFactory::getInt().release();
+    return constInfo{
+        .is_const = true,
+        .value = (void*)(new int(node->value)),
+        .type = node->inferred_type
+    };
+}
+
+void TypeChecker::dumpErrors(std::string path) {
+    for(const auto &str : errorMessages) {
+        std::cout << path << str << std::endl;
+    }
+}
