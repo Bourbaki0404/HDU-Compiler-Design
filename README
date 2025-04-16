@@ -8,8 +8,8 @@
 
 ### Features:
 
-> 1. Handcrafted scanner
-> 2. Rule-action style LL(1) parser.
+> 1. Handcrafted scanner.
+> 2. Rule-action style LR(1) parser.
 > 3. Tree representation of program and statics checker with graceful error handling.
 
 ### ToDos:
