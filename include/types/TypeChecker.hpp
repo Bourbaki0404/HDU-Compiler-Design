@@ -28,6 +28,7 @@ struct func_def;
 struct var_def;
 struct var_decl;
 struct init_val;
+struct class_def;
 
 
 struct Type;
@@ -37,7 +38,7 @@ struct FuncType;
 struct ClassType;
 
 struct SymbolTable;
-
+struct Symbol;
 // template<typename T>
 // struct  AbstractNodeAnalyzer {
 //     // T analyze( node);
@@ -112,6 +113,8 @@ struct TypeChecker {
         defaultResult = value;
     }
 
+    analyzeInfo analyze(class_def* node) ;
+
     // Expression nodes
     analyzeInfo analyze(binary_expr* node) ;
     analyzeInfo analyze(unary_expr* node) ;
@@ -142,6 +145,9 @@ struct TypeChecker {
     // Initialization node
     analyzeInfo analyze(init_val* node) ;
 
+    void analyzeFunctionBody(func_def *node);
+    void analyzeInit(var_def* node);
+
     // Visit types
     analyzeInfo evaluate(ArrayType* node) ;
     analyzeInfo evaluate(FuncType* node) ;
@@ -158,6 +164,7 @@ private:
     void TypeError(node *ptr, const std::string &str);
     // Type checking state
     func_def *currentFuncDef;
+    class_def *currentClassDef;
     SymbolTable *symbolTable;
     analyzeInfo currentReturnType;
     std::vector<size_t> controlFlowStack;

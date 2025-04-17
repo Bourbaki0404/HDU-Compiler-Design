@@ -162,7 +162,7 @@ void FuncType::evaluate(TypeChecker *ptr = nullptr) {
 }
 
 std::string FuncType::to_string() {
-    std::string res = retType->to_string() + "(";
+    std::string res = (retType ? retType->to_string() : "") + "(";
     for(size_t i = 0; i < argTypeList.size(); i++) {
         if(i == argTypeList.size() - 1) {
             res += argTypeList[i]->to_string();
@@ -192,10 +192,50 @@ void ClassType::evaluate(TypeChecker *ptr) {
 
 }
 
+bool ClassType::addMethod(std::string str, MethodInfo info) {
+    if(methods.find(str) != methods.end()) {
+        return false; //duplication
+    }
+    methods[str] = info;
+    return true;
+}
+
+bool ClassType::addField(std::string str, FieldInfo info) {
+    if(fields.find(str) != fields.end()) {
+        return false; //duplication
+    }
+    fields[str] = info;
+    return true;
+}
+
 void ClassType::setConst()
 {
     is_const = true;
 } 
+
+ClassVarType::ClassVarType(const std::string &classname) 
+: Type(TypeKind::ClassVar){
+    this->classname = classname;
+    is_const = false;
+}
+
+bool ClassVarType::equals(Type* other) {
+    if(this->kind != other->kind) return false;
+    if(this->classname != ((ClassVarType*)other)->classname) return false;
+    return true;
+}
+
+void ClassVarType::evaluate(TypeChecker *ptr) {
+    return;
+}
+
+std::string ClassVarType::to_string() {
+    return "class "+ classname;
+}
+
+void ClassVarType::setConst() {
+    is_const = true;
+}
 
 // TypeFactory
 TypePtr TypeFactory::getTypeFromName(const std::string& type_name) {
@@ -208,8 +248,8 @@ TypePtr TypeFactory::getTypeFromName(const std::string& type_name) {
     };
 
     auto it = type_map.find(type_name);
-    if (it == type_map.end()) {
-        throw std::runtime_error("Unknown type name: " + type_name);
+    if (it == type_map.end()) { // classVarType
+        return TypePtr(static_cast<Type*>(new ClassVarType(type_name)));
     }
 
     TypePtr type;

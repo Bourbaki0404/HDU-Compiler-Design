@@ -40,7 +40,7 @@ enum symbolType {
     KW_RETURN, KW_FUNCTION, KW_CLASS, KW_BREAK, KW_CONTINUE, KW_CONST, 
 
     // Type
-    KW_INT, KW_VOID, KW_FLOAT, KW_STRUCT, KW_CHAR,
+    KW_INT, KW_VOID, KW_FLOAT, KW_STRUCT, KW_CHAR, 
 
     // Special
     END_OF_FILE, INVALID, 
@@ -55,7 +55,10 @@ enum symbolType {
     InitValTailTail, FuncDef, FuncFParams, FuncFParamsTail, FuncFParam, FuncFParamTail, 
     Block, BlockItem, BlockItemTail, Stmt, ReturnExp, Exp,
     LVal, LValTail, PrimaryExp, Number, UnaryExp, UnaryOp, FuncRParams, FuncRParamsTail,
-    MulExp, MulOp, AddExp, AddOp, RelExp, RelOp, EqExp, EqOp, LAndExp, LOrExp, ConstExp
+    MulExp, MulOp, AddExp, AddOp, RelExp, RelOp, EqExp, EqOp, LAndExp, LOrExp, ConstExp,
+
+    // OOP
+    ClassDef, ClassBody, ClassMemberList, ClassMember, ConstructorDef
 };
 
 

@@ -243,8 +243,15 @@ const std::unordered_map<symbolType, std::string> symbolTypeNames = {
     {EqOp, "EqOp"},
     {LAndExp, "LAndExp"},
     {LOrExp, "LOrExp"},
-    {ConstExp, "ConstExp"}
+    {ConstExp, "ConstExp"},
+    {ClassDef, "ClassDef"},
+    {ClassBody, "ClassBody"},
+    {ClassMember, "ClassMember"},
+    {ClassMemberList, "ClassMemberList"},
+    {ConstructorDef, "ConstructorDef"}
 };
+
+const auto initLoc = std::pair<size_t, size_t>{-1, -1};
 
 SemanticAction binaryFactory() {
     return [](std::vector<parseInfoPtr>& children) {
@@ -327,12 +334,66 @@ const std::vector<ruleAction> ruleWithAction = {
     ruleAction(rule(CompUnit, {CompUnit, Decl}), compUnitFactory()),
     ruleAction(rule(CompUnit, {CompUnit, FuncDef}), compUnitFactory()),
 
+    ruleAction(rule(CompUnit, {ClassDef}), compUnitFactory_1()),
+    ruleAction(rule(CompUnit, {CompUnit, ClassDef}), compUnitFactory()),
+
+    ruleAction(rule(ClassDef, {KW_CLASS, ID, LBC, ClassBody, RBC, SEMICOLON}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        auto classDef = static_cast<class_def*>(children[3]->ptr.release());
+        classDef->setName(children[1]->str_val);
+        classDef->setLoc(children[0]->location);
+        classDef->reverseChildren();
+        res->set_node(nodePtr(classDef));
+        return res;
+    }),
+    ruleAction(rule(ClassBody, {}), [](std::vector<parseInfoPtr>&) {
+        parseInfoPtr res = std::make_unique<parseInfo>(initLoc);
+        res->set_node(std::make_unique<class_def>(initLoc)); // Empty class_def
+        return res;
+    }),
+    
+    rule(ClassBody, {ClassMemberList}), // class with members
+
+
+    ruleAction(rule(ClassMemberList, {ClassMember}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        auto def = std::make_unique<class_def>(children[0]->location);
+        def->addChild(std::move(children[0]->ptr));
+        res->set_node(std::move(def));
+        return res;
+    }),
+
+    // ClassMemberList → ClassMember ClassMemberList
+    ruleAction(rule(ClassMemberList, {ClassMember, ClassMemberList}), [](std::vector<parseInfoPtr>& children) {
+        auto def = static_cast<class_def*>(children[1]->ptr.release());
+        def->addChild(std::move(children[0]->ptr));
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        res->set_node(nodePtr(def));
+        return res;
+    }),
+
+    rule(ClassMember, {VarDecl}),       // member variable
+    rule(ClassMember, {FuncDef}),       // member function
+    rule(ClassMember, {ConstructorDef}), // optional: constructor
+
+    ruleAction(rule(ConstructorDef, {ID, LPR, FuncFParams, RPR, Block}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        auto funcDef = static_cast<func_def*>(children[2]->ptr.release());
+        funcDef->set_id_reverse_params(children[0]->str_val);
+        funcDef->setLoc(children[0]->location);
+        funcDef->set_body(blockPtr(static_cast<block_stmt*>(children[4]->ptr.release())));
+        funcDef->setCtor();
+        res->set_node(funcDefPtr(funcDef));
+        return res;
+    }),// optional: constructor
+
     // Declarations
     rule(Decl, {ConstDecl}),
     rule(Decl, {VarDecl}),
 
     // Types
     rule(Type, {KW_INT}),
+    rule(Type, {ID}),
 
     // Constant Declarations
     ruleAction(rule(ConstDecl, {KW_CONST, Type, ConstDef, ConstDeclTail, SEMICOLON}), [](std::vector<parseInfoPtr>& children) {
@@ -725,8 +786,15 @@ const std::vector<ruleAction> ruleWithAction = {
         res->set_node(nodePtr(ptr));
         return res;
     }),
+
+
     rule(Number, {NUM}),
     rule(UnaryExp, {PrimaryExp}),
+
+    // member access
+    rule(Exp, {Exp, DOT, ID}),
+    rule(Exp, {Exp, DOT, ID, LPR, FuncRParams, RPR}),
+
     ruleAction(rule(UnaryExp, {ID, LPR, FuncRParams, RPR}), [](std::vector<parseInfoPtr>& children) {
         
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
@@ -1170,6 +1238,7 @@ computeLRTable(
                 }
             } else {
                 bool resolved = false;
+                // printLR1Items(curState.items);
                 for(const auto &item : allState[curId].items) {
                     if(item.rule == rule(Stmt, {KW_IF, LPR, Exp, RPR, Stmt, KW_ELSE, Stmt}) 
                         && item.pos == 5 && edge == KW_ELSE) 

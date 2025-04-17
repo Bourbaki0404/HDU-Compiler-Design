@@ -407,6 +407,7 @@ analyzeInfo func_param::dispatch(TypeChecker *ptr)
 // Function Definition
 func_def::func_def(std::pair<size_t, size_t> loc) : node(loc) {
     this->type = new FuncType();
+    kind = ASTKind::Func_Def;
 }
 
 void func_def::add_param(funcparamPtr param) {
@@ -440,8 +441,11 @@ void func_def::setLoc(std::pair<size_t, size_t> loc) {
 }
 
 std::string func_def::to_string() {
-    return "FuncDef <ret_type: " + (ret_type ? ret_type->to_string() : "") + 
-           ", id: " + name + ">";
+    if(is_constructor) {
+        return "Ctor <id: " + name + ">";
+    } else {
+        return "FuncDef <ret_type: " + (ret_type ? ret_type->to_string() : "") + ", id: " + name + ">";
+    }
 }
 
 void func_def::printArgList(std::string prefix, std::string info_prefix) {
@@ -470,7 +474,13 @@ void func_def::printAST(std::string prefix, std::string info_prefix) {
 
 analyzeInfo func_def::dispatch(TypeChecker *ptr)
 {
-    return ptr->analyze(this);
+    auto info = ptr->analyze(this); 
+    ptr->analyzeFunctionBody(this);
+    return info;
+}
+
+void func_def::setCtor() {
+    is_constructor = true;
 }
 
 // Variable Definition
@@ -537,11 +547,15 @@ void var_def::printAST(std::string prefix, std::string info_prefix) {
 
 analyzeInfo var_def::dispatch(TypeChecker *ptr)
 {
-    return ptr->analyze(this);
+    auto info = ptr->analyze(this);
+    ptr->analyzeInit(this);
+    return info;
 }
 
 // Variable Declaration
-var_decl::var_decl(std::pair<size_t, size_t> loc) : node(loc) {}
+var_decl::var_decl(std::pair<size_t, size_t> loc) : node(loc) {
+    kind = ASTKind::Var_Decl;
+}
 
 void var_decl::addVarDef(vardefPtr def) {
     defs.push_back(std::move(def));
@@ -645,3 +659,42 @@ analyzeInfo init_val::dispatch(TypeChecker *ptr)
     return ptr->analyze(this);
 }
 
+class_def::class_def(std::pair<size_t, size_t> loc)
+: node(loc) {
+    kind = ASTKind::Class_Def;
+}
+
+void class_def::addChild(nodePtr child) {
+    children.push_back(std::move(child));
+}
+
+void class_def::setName(std::string name) {
+    this->name = name;
+}
+
+void class_def::setLoc(std::pair<size_t, size_t> loc) {
+    location = loc;
+}
+
+std::string class_def::to_string() {
+    return "ClassDef <id: " + name + ">";
+}
+
+void class_def::reverseChildren() {
+    std::reverse(children.begin(), children.end());
+}
+
+void class_def::printAST(std::string prefix, std::string info_prefix) {
+    std::cout << info_prefix << to_string() << locToString(location, error_msg);
+    for (size_t i = 0; i < children.size(); ++i) {
+        if (i != children.size() - 1) {
+            children[i]->printAST(prefix + "│   ", prefix + "├── ");
+        } else {
+            children[i]->printAST(prefix + "    ", prefix + "└── ");
+        }
+    }
+}
+
+analyzeInfo class_def::dispatch(TypeChecker *ptr) {
+    return ptr->analyze(this);
+}

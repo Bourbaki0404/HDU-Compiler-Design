@@ -67,7 +67,7 @@ $(BUILD_DIR)/symbolTable/%.o: $(SYMTABLE_DIR)/%.cpp
 
 # Test target
 test: compiler
-	$(BUILD_DIR)/compiler test_input.c
+	$(BUILD_DIR)/compiler test_input.cpp
 
 clean:
 	rm -rf $(BUILD_DIR)

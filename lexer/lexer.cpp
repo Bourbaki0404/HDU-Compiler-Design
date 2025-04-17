@@ -93,7 +93,11 @@ const std::map<std::string, token::tokenType> operators = {
     {"<<", token::SHL}, {">>", token::SHR},
 
     // Assign
-    {"=", token::tokenType::ASSIGN}
+    {"=", token::tokenType::ASSIGN},
+
+    // Member Access
+    {".", token::tokenType::DOT}
+    // {".", T}
 };
 
 size_t read_operator(const std::string &code, size_t start) {

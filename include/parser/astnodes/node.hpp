@@ -13,6 +13,7 @@ struct block_stmt;
 struct func_param;
 struct func_def;
 struct init_val;
+struct class_def;
 
 struct constInfo;
 struct TypeChecker;
@@ -38,7 +39,8 @@ enum ASTKind {
     Func_Def,
     Var_Def,
     Var_Decl,
-    Init_Val
+    Init_Val,
+    Class_Def
 };
 
 
@@ -60,6 +62,7 @@ using blockPtr = std::unique_ptr<block_stmt>;
 using funcparamPtr = std::unique_ptr<func_param>;
 using funcDefPtr = std::unique_ptr<func_def>;  
 using initValPtr = std::unique_ptr<init_val>;
+using classPtr = std::unique_ptr<class_def>;
 
 #include "types/types.hpp"
 #include "types/TypeChecker.hpp"
@@ -276,12 +279,13 @@ struct func_def : public node, public typeEvaluator {
     void printArgList(std::string prefix, std::string info_prefix);
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
-    const ASTKind kind = Func_Def;
+    void setCtor();
     TypePtr ret_type;
     FuncType *type; // will be only modified by the typechecker
     std::string name;
     std::vector<funcparamPtr> params;
     std::vector<nodePtr> body;
+    bool is_constructor = false;
 };
 
 struct var_def : public node {
@@ -337,6 +341,23 @@ public:
     bool is_const = false;
     std::vector<initValPtr> children;
     expPtr scalar;
+};
+
+struct class_def : node {
+public:
+    class_def(std::pair<size_t, size_t> loc);
+    void addChild(nodePtr child);
+    void setName(std::string name);
+    void setLoc(std::pair<size_t, size_t> loc);
+    std::string to_string() override;
+    void reverseChildren() ;
+    void printAST(std::string prefix, std::string info_prefix) override;
+    analyzeInfo dispatch(TypeChecker *ptr) ;
+public:
+    std::string name;
+    std::vector<nodePtr> children;
+    //only will be filled in by typechecker
+    class_def *type = nullptr;
 };
 
 #endif

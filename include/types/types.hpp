@@ -34,6 +34,7 @@ enum TypeKind {
     Pointer,
     Class,
     Function,
+    ClassVar,
     Error // when type error happens
 };
 
@@ -99,7 +100,6 @@ struct FuncType : public Type {
     bool equals(Type *other);
     std::string to_string() override;
     void evaluate(TypeChecker *ptr) override;
-    TypeKind kind = TypeKind::Function;
     TypePtr retType = nullptr;
     std::vector<TypePtr> argTypeList;
 };
@@ -114,16 +114,14 @@ enum AccessSpecifier {
 
 // Field & Method Metadata
 struct FieldInfo {
-    std::string name;
-    TypePtr type;
+    struct Type *type;
     AccessSpecifier access;
 };
 
 struct MethodInfo {
-    std::string name;
-    TypePtr type;
+    struct Type *type;
     bool isVirtual;
-    bool isOverride;    // Marks if it overrides a base method
+    bool isConstructor;
     AccessSpecifier access;
 };
 
@@ -132,6 +130,8 @@ struct ClassType : Type {
     std::string to_string() override;
     bool equals(Type* other) override;
     void evaluate(TypeChecker *ptr) override;
+    bool addMethod(std::string str, MethodInfo info);
+    bool addField(std::string str, FieldInfo info);
     void setConst() override;
     std::string name;
     std::string baseClass;                  // Single parent (empty if none)
@@ -140,6 +140,15 @@ struct ClassType : Type {
     std::unordered_map<std::string, MethodInfo> methods;        // Member functions
     TypeKind kind = TypeKind::Class;
     bool isPolymorphic = false;             // Has virtual methods?
+};
+
+struct ClassVarType : Type {
+    ClassVarType(const std::string &classname);
+    bool equals(Type* other) override;
+    void evaluate(TypeChecker *ptr) override;
+    std::string to_string() override;
+    void setConst() override;
+    std::string classname;
 };
 
 

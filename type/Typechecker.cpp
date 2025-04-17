@@ -1,7 +1,6 @@
 #include "parser/astnodes/node.hpp"
-#include "types/TypeChecker.hpp"
 #include "symbolTable/symbolTable.hpp"
-
+#include "types/TypeChecker.hpp"
 const analyzeInfo HASERROR = analyzeInfo {
     .type = new ErrorType(),
 };
@@ -23,6 +22,77 @@ TypeChecker::TypeChecker()
 {
     symbolTable = new SymbolTable();
     loopDepth = 0;
+}
+
+/*
+    1. The constructor shouldn't return any value.
+    2. 
+
+*/
+analyzeInfo TypeChecker::analyze(class_def* node) {
+std::cout << "Entering class: " << node->name << "\n";
+    symbolTable->printCurScope();
+    ClassType *class_ptr = new ClassType(node->name, "");
+
+    currentClassDef = node;
+
+    if(symbolTable->exists(node->name)) {
+        std::stringstream ss;
+        ss  << "Class '"
+            << node->name
+            << "' is redefined in the global scope";
+        TypeError(node, ss.str());
+        return HASERROR;
+    }
+
+    symbolTable->beginScope();
+
+    // adding declarations
+    for(size_t i = 0; i < node->children.size(); i++) {
+        if(node->children[i]->kind == ASTKind::Func_Def) {
+            func_def *p = dynamic_cast<func_def*>(node->children[i].get());
+            analyze(p);
+            class_ptr->addMethod(p->name, MethodInfo{
+                .type = p->type,
+                .isVirtual = false,
+                .isConstructor = p->is_constructor,
+                .access = AccessSpecifier::PUBLIC
+            });
+        } else if(node->children[i]->kind == ASTKind::Var_Decl) {
+                var_decl *p = dynamic_cast<var_decl*>(node->children[i].get());
+                for(size_t i = 0; i < p->defs.size(); i ++) {
+                    analyze(p->defs[i].get());
+                    class_ptr->addField(p->defs[i]->id, FieldInfo{
+                        .type = p->defs[i]->type.get(),
+                        .access = AccessSpecifier::PUBLIC
+                    });
+                }
+        } else {
+            std::cout << node->children[i]->to_string() << "\n";
+            while(1);
+        }
+    }
+
+    // handling bodies
+    for(size_t i = 0; i < node->children.size(); i++) {
+      if(node->kind == ASTKind::Func_Def) {
+        func_def *p = dynamic_cast<func_def*>(node);
+        analyzeFunctionBody(p);
+      } else if(node->kind == ASTKind::Var_Decl) {
+        var_decl *p = dynamic_cast<var_decl*>(node);
+        for(size_t i = 0; i < p->defs.size(); i ++) {
+            analyzeInit(p->defs[i].get());
+        }
+      }
+    }
+    std::cout << "class scope:\n";
+    symbolTable->printCurScope();
+    symbolTable->endScope();
+    symbolTable->insert(node->name, Symbol{.kind = symbolKind::CLASS_DEF,
+                                           .type = class_ptr,
+                                           .data = nullptr});
+    currentFuncDef = nullptr;
+    return analyzeInfo();
 }
 
 // ========================
@@ -269,37 +339,17 @@ analyzeInfo TypeChecker::analyze(block_stmt* node) {
 // Declaration/Definition Nodes
 // ========================
 
-analyzeInfo TypeChecker::analyze(func_def* node) {
-    std::cout << "Entering function: " << node->name << "\n";
-    FuncType *p = new FuncType();
-
-    currentFuncDef = node;
-
-    if(symbolTable->exists(node->name)) {
-        std::stringstream ss;
-        ss << "Function redefined in the global scope";
-        TypeError(node, ss.str());
-        return HASERROR;
-    }
-
-    symbolTable->beginScope();
-
-
-    for(size_t i = 0; i < node->params.size(); i++) {
-        node->params[i]->type->evaluate(this);
-        // std::cout << "Arg(" << i << ") type " << node->params[i]->type->to_string() << "\n";
-        symbolTable->insert(node->params[i]->id, 
-        Symbol{
-            .kind = VARIABLE,
-            .type = node->params[i]->type.get()
-        });
-        p->addArgType(std::move(node->params[i]->type));
-    }
-    p->setRetType(std::move(node->ret_type));
-    node->type = p;
-    // std::cout << p->to_string() << "\n";
+void TypeChecker::analyzeFunctionBody(func_def *node) {
     // symbolTable->printCurScope();
-
+    currentFuncDef = node;
+    symbolTable->beginScope();
+    for(size_t i = 0; i < node->params.size(); i++) {
+        symbolTable->insert(node->params[i]->id, 
+            Symbol{
+                .kind = VARIABLE,
+                .type = node->type->argTypeList[i].get()
+            });
+    }
     bool hasReturnStmt = false;
     for(size_t i = 0; i < node->body.size(); i++) {
         node->body[i]->dispatch(this);
@@ -316,15 +366,41 @@ analyzeInfo TypeChecker::analyze(func_def* node) {
             TypeError(node, ss.str());
         }
     }
-
     // symbolTable->printCurScope();
     symbolTable->endScope();
+    currentFuncDef = 0;
+}
 
+analyzeInfo TypeChecker::analyze(func_def* node) {
+    std::cout << "Entering function: " << node->name << "\n";
+    FuncType *p = new FuncType();
+
+    if(symbolTable->exists(node->name)) {
+        std::stringstream ss;
+        ss << "Function redefined in the global scope";
+        TypeError(node, ss.str());
+        return HASERROR;
+    }
+    
+    for(size_t i = 0; i < node->params.size(); i++) {
+        node->params[i]->type->evaluate(this);
+        // std::cout << "Arg(" << i << ") type " << node->params[i]->type->to_string() << "\n";
+        p->addArgType(std::move(node->params[i]->type));
+    }
+    if(!node->is_constructor) 
+        p->setRetType(std::move(node->ret_type));
+    else
+        p->setRetType(nullptr); //constructor will not return a value
+
+    node->type = p;//SET INFERRED TYPE
+
+    // symbolTable->printCurScope();
+    if(node->is_constructor && node->name != currentClassDef->name) {
+        TypeError(node, "The class constructor '" + node->name + "' must be of the same name as the class");
+    }
     symbolTable->insert(node->name, Symbol{.kind = FUNCTION,
                                            .type = p,
                                            .data = nullptr});
-    symbolTable->printCurScope();
-    currentFuncDef = nullptr;
     return analyzeInfo();
 }
 
@@ -344,9 +420,9 @@ normalization(init_val *ptr, std::vector<size_t> dims, Type *elementType, TypeCh
 
     for(size_t i = 0; i < ptr->children.size(); i++) {
         init_val *child = ptr->children[i].get();
+         child->printAST("","");
         if(child->scalar) {
             child->scalar->dispatch(tc); //tc before use inferred type
-            
             if(elementType->equals(child->scalar->inferred_type)) {
                    
                 init_val *new_child = new init_val(std::pair<size_t,size_t>(0, 0));
@@ -372,6 +448,7 @@ normalization(init_val *ptr, std::vector<size_t> dims, Type *elementType, TypeCh
                     dims_2.push_back(length);
                 }
                 std::reverse(dims_2.begin(), dims_2.end());
+               
                 auto pair = normalization(child, dims_2, elementType, tc);
                 if(pair.second != SUCCESS) {
                     return {result, pair.second};
@@ -404,6 +481,54 @@ normalization(init_val *ptr, std::vector<size_t> dims, Type *elementType, TypeCh
     return {result, SUCCESS};
 }
 
+void TypeChecker::analyzeInit(var_def* node) {
+    if(node->init_val) {
+        init_val *p = static_cast<init_val*>(node->init_val.get());
+        if(node->type->kind == TypeKind::Int) {
+            if(p->scalar == nullptr) {
+                std::stringstream ss;
+                ss << "scalar can not be initialzed with a list";
+                TypeError(node, ss.str());
+            } else {
+                auto info = p->scalar->dispatch(this);
+                if(!info.type->equals(node->type.get())) {
+                    std::stringstream ss;
+                    ss << "type mismatch in initialization, "
+                       << node->type->to_string() << " is not "
+                       << info.type->to_string();
+                    TypeError(node, ss.str());
+                } else {
+                    //success
+                }
+            }
+        }
+        if(node->type->kind == TypeKind::Array) {
+            if(p->scalar != nullptr) {
+                std::stringstream ss;
+                ss << "scalar can not be used to initialze an array";
+                TypeError(node, ss.str());
+            } else {
+                ArrayType *type = dynamic_cast<ArrayType*>(node->type.get());
+                auto pair = normalization(p, type->dims, type->element_type.get(), this);
+                switch (pair.second)
+                {
+                    case NOTALIGNED:
+                        TypeError(node, "Initialization list not correctly aligned");
+                        break;
+                    case OVERSIZE:
+                        TypeError(node, "Initialization list is oversized");
+                        break;
+                    case TYPEERROR:
+                        TypeError(node, "Initialization list has type error");
+                        break;
+                }
+                node->init_val = nodePtr(pair.first);
+            }
+            std::cout << "HD1A\n";
+        }
+    }
+}
+
 analyzeInfo TypeChecker::analyze(var_def* node) {
     if(symbolTable->exists(node->id)) {
         std::stringstream ss;
@@ -428,52 +553,6 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
     if(node->is_const) {
         node->type->setConst();
     }
-    
-    if(node->init_val) {
-        init_val *p = static_cast<init_val*>(node->init_val.get());
-        if(node->type->kind == TypeKind::Int) {
-            if(p->scalar == nullptr) {
-                std::stringstream ss;
-                ss << "scalar can not be initialzed with a list";
-                TypeError(node, ss.str());
-            } else {
-                auto info = p->scalar->dispatch(this);
-                if(!info.type->equals(node->type.get())) {
-                    std::stringstream ss;
-                    ss << "type mismatch in initialization, "
-                       << node->type->to_string() << " is not "
-                       << info.type->to_string();
-                    TypeError(node, ss.str());
-                } else {
-                    //success
-                }
-            }
-        }
-        
-        if(node->type->kind == TypeKind::Array) {
-            if(p->scalar != nullptr) {
-                std::stringstream ss;
-                ss << "scalar can not be used to initialze an array";
-                TypeError(node, ss.str());
-            } else {
-                ArrayType *type = dynamic_cast<ArrayType*>(node->type.get());
-                auto pair = normalization(p, type->dims, type->element_type.get(), this);
-                switch (pair.second)
-                {
-                    case NOTALIGNED:
-                        TypeError(node, "Initialization list not correctly aligned");
-                        break;
-                    case OVERSIZE:
-                        TypeError(node, "Initialization list is oversized");
-                        break;
-                    case TYPEERROR:
-                        TypeError(node, "Initialization list has type error");
-                        break;
-                }
-                node->init_val = nodePtr(pair.first);
-            }
-        }
-    }
 
     symbolTable->insert(node->id, 
     Symbol{
@@ -482,7 +561,6 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
         .data = nullptr
     });
     symbolTable->printCurScope();
-
     return analyzeInfo();
 }
 
