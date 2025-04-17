@@ -52,7 +52,7 @@ unary_expr::unary_expr(std::pair<size_t, size_t> loc, std::string op, expPtr ope
     }
 
 std::string unary_expr::to_string() {
-    return "unary_expr <op " + op + ">";
+    return "unary_expr <op " + op + "> " + (inferred_type ? MAGENTA + std::string("inferredType: ") + inferred_type->to_string() + RESET + " ": "");
 }
 
 void unary_expr::printAST(std::string prefix, std::string info_prefix) {
@@ -78,7 +78,7 @@ binary_expr::binary_expr(std::pair<size_t, size_t> loc, std::string op, expPtr l
     }
 
 std::string binary_expr::to_string() {
-    return "binary_expr <op " + op + "> ";
+    return "binary_expr <op " + op + "> " + (inferred_type ? MAGENTA + std::string("inferredType: ") + inferred_type->to_string() + RESET + " ": "");
 }
 
 void binary_expr::printAST(std::string prefix, std::string info_prefix) {
@@ -303,7 +303,7 @@ int_literal::int_literal(std::pair<size_t, size_t> loc, int val)
     }
 
 std::string int_literal::to_string() {
-    return "int_literal <value " + std::to_string(value) + ">";
+    return "int_literal <value " + std::to_string(value) + "> " + (inferred_type ? MAGENTA + std::string("inferredType: ") + inferred_type->to_string() + RESET + " ": "");
 }
 
 analyzeInfo int_literal::dispatch(TypeChecker *ptr)
@@ -328,12 +328,13 @@ void fun_call::setName(std::string name) {
 }
 
 std::string fun_call::to_string() {
-    std::string result = "fun_call <id " + func_name + ">(";
+    std::string result = "fun_call <id " + func_name + "(";
     for (size_t i = 0; i < args.size(); ++i) {
         if (i != 0) result += ", ";
-        result += "arg" + std::to_string(i + 1);
+        result += "argnum " + std::to_string(i + 1);
     }
-    result += ")>";
+    result += ")> ";
+    result += (inferred_type ? MAGENTA + std::string("inferredType: ") + inferred_type->to_string() + RESET + " ": "");
     return result;
 }
 void fun_call::setLoc(std::pair<size_t, size_t> loc) {

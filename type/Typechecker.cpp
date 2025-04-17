@@ -618,7 +618,7 @@ analyzeInfo TypeChecker::analyze(member_access *node) {
     if(node->isFunc) {
         if(classdef->methods.find(node->name) == classdef->methods.end()) {
             // method not found
-            TypeError(node, "The classname '" + classType->classname + "' is not bound to a class");
+            TypeError(node, "The class '" + classType->classname + "' does not have method '" + node->name + "'");
             node->inferred_type = HASERROR.type;
             return HASERROR;
         } else {
@@ -648,7 +648,17 @@ analyzeInfo TypeChecker::analyze(member_access *node) {
             };
         }
     } else {
-
+        if(classdef->fields.find(node->name) == classdef->fields.end()) {
+            // field not found
+            TypeError(node, "The class '" + classType->classname + "' does not have field '" + node->name + "'");
+            node->inferred_type = HASERROR.type;
+            return HASERROR;
+        }
+        auto info = classdef->fields[node->name];
+        node->inferred_type = info.type;
+        return analyzeInfo{
+            .type = info.type
+        };
     }
     return HASERROR;
 }
