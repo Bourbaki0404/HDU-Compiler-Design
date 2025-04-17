@@ -4,6 +4,10 @@
 #include "parser/parser.hpp"
 #include "types/TypeChecker.hpp"
 
+class A {
+    A();
+};
+
 int f(int a) {
     return 0;
 }
@@ -14,16 +18,16 @@ int (main) (int argc, char* argv[]) {
 
     printTokens(tokens);
     // printAllRules(parserRules);
-    const auto &firstSets = computeFirstSet(parserRules);
+    // const auto &firstSets = computeFirstSet(parserRules);
     // printFirstOrFollowSets(firstSets, true);
     // const auto &followSets = computeFollowSet(parserRules, firstSets);
     // printFirstOrFollowSets(followSets, false);
-    lrState start(computeClosure({lrItem(parserRules[0], 0, END_OF_FILE)}, firstSets));
+    // lrState start(computeClosure({lrItem(parserRules[0], 0, END_OF_FILE)}, firstSets));
     // printLR1Items(computeNextState(start, ID, firstSets).items);
-    const auto &table = computeLRTable(firstSets, start);
-    exportLRTableToCSV(table, "table.csv");
+    // const auto &table = computeLRTable(firstSets, start);
+    // exportLRTableToCSV(table, "table.csv");
     LRTable table1 = importLRTableFromCSV("table.csv");
-    auto result = std::move(Parse(tokens, table1, true));
+    auto result = std::move(Parse(tokens, table1, false));
     if(result.parseTree == nullptr) {
         return -1;
     }

@@ -95,9 +95,10 @@ struct program : public node{
 struct expr : public node, public constEvaluator {
     public:
         expr(std::pair<size_t, size_t> loc, struct Type *ptr);
-        
+        void setConst(bool is_const);
     public:
         struct Type *inferred_type;
+        bool is_const;
 };
 
 struct unary_expr : public expr {
@@ -358,6 +359,18 @@ public:
     std::vector<nodePtr> children;
     //only will be filled in by typechecker
     class_def *type = nullptr;
+};
+
+struct member_access : expr {
+    member_access(std::pair<size_t, size_t> loc, expPtr exp, const std::string &name);
+    std::string to_string() override;
+    void printAST(std::string prefix, std::string info_prefix) override;
+    analyzeInfo dispatch(TypeChecker *ptr) ;
+    constInfo const_eval(TypeChecker *ptr);
+    std::string name;
+    expPtr exp = nullptr;
+    bool isFunc = false;
+    std::vector<expPtr> args;
 };
 
 #endif

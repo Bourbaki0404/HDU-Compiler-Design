@@ -1,7 +1,6 @@
 #include "common/common.hpp"
 
 #include "parser/astnodes/node.hpp"
-// #include "node.hpp"
 
 
 // Base node implementation
@@ -40,6 +39,11 @@ analyzeInfo program::dispatch(TypeChecker *ptr)
 
 // Expression Nodes
 expr::expr(std::pair<size_t, size_t> loc, struct Type *ptr) : node(loc), inferred_type(ptr) {}
+
+
+void expr::setConst(bool is_const) {
+    this->is_const = is_const;
+}
 
 // Unary Expression
 unary_expr::unary_expr(std::pair<size_t, size_t> loc, std::string op, expPtr operand)
@@ -697,4 +701,42 @@ void class_def::printAST(std::string prefix, std::string info_prefix) {
 
 analyzeInfo class_def::dispatch(TypeChecker *ptr) {
     return ptr->analyze(this);
+}
+
+member_access::member_access(std::pair<size_t, size_t> loc, expPtr exp, const std::string &name)
+: expr(loc, nullptr) {
+    this->exp = std::move(exp);
+    this->name = name;
+}
+
+std::string member_access::to_string() {
+    return "member_access <kind " + std::string(isFunc ? "method" : "var") + ", member " + name + ">";
+}
+
+void member_access::printAST(std::string prefix, std::string info_prefix) {
+    std::cout << info_prefix << to_string() << locToString(location, error_msg);
+    if(!isFunc) {
+        exp->printAST(prefix + "     ", prefix + "└── objexpr: ");
+    } else {
+        exp->printAST(prefix + "│    ", prefix + "├── objexpr: ");
+        for(size_t i = 0; i < args.size(); i++) {
+            if (i != args.size() - 1) {
+                args[i]->printAST(prefix + "│    ", prefix + "├── arg " + std::to_string(i) + ") ");
+            } else {
+                args[i]->printAST(prefix + "     ", prefix + "└── arg " + std::to_string(i) + ") ");
+            }
+        }
+    }
+}
+
+analyzeInfo member_access::dispatch(TypeChecker *ptr) {
+    return ptr->analyze(this);
+}
+
+constInfo member_access::const_eval(TypeChecker *ptr) {
+    return constInfo{
+        .is_const = false,
+        .value = nullptr,
+        .type = nullptr
+    };
 }

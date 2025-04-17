@@ -195,6 +195,7 @@ analyzeInfo TypeChecker::analyze(lval_expr* node) {
     };
 }
 
+
 analyzeInfo TypeChecker::analyze(fun_call* node) {
     if(!symbolTable->exists(node->func_name)) {
         std::stringstream ss;
@@ -223,8 +224,7 @@ analyzeInfo TypeChecker::analyze(fun_call* node) {
             << node->args.size() << " is provided";
         TypeError(node, ss.str());
     }
-
-    for(size_t i = 0; i < node->args.size(); i++) {
+    for(size_t i = 0; i < std::min(node->args.size(), type->argTypeList.size()); i++) {
         if(!type->argTypeList[i]->equals(node->args[i]->inferred_type)) {
             std::stringstream ss;
             ss  << "The " << i << "th argument of function '" << node->func_name 
@@ -593,6 +593,66 @@ analyzeInfo TypeChecker::analyze(program* node) {
 analyzeInfo TypeChecker::analyze(init_val* node) {
     return analyzeInfo();
 }
+
+// In this function the visited node will either represent a field or method, indicating by the isFunc
+analyzeInfo TypeChecker::analyze(member_access *node) {
+    auto info = node->exp->dispatch(this);
+    if(node->exp->inferred_type->kind != TypeKind::ClassVar) {
+        TypeError(node, "The expression at the left of the dot should be an object, but its type is '" + node->exp->inferred_type->to_string() + "'");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    ClassVarType *classType = dynamic_cast<ClassVarType*>(node->exp->inferred_type);
+    if(!symbolTable->exists(classType->classname)) {
+        TypeError(node, "The classname '" + classType->classname + "' is not bound");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    auto sym = symbolTable->getValue(classType->classname);
+    if(sym.kind != symbolKind::CLASS_DEF) {
+        TypeError(node, "The classname '" + classType->classname + "' is not bound to a class");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    ClassType *classdef = static_cast<ClassType*>(sym.type);
+    if(node->isFunc) {
+        if(classdef->methods.find(node->name) == classdef->methods.end()) {
+            // method not found
+            TypeError(node, "The classname '" + classType->classname + "' is not bound to a class");
+            node->inferred_type = HASERROR.type;
+            return HASERROR;
+        } else {
+            MethodInfo info = classdef->methods[node->name];
+            FuncType *type = dynamic_cast<FuncType*>(info.type);
+            if(type->argTypeList.size() != node->args.size()) {
+                std::stringstream ss;
+                ss  << "Function '" << node->name << "' has "
+                    << type->argTypeList.size() << " arguments, but "
+                    << node->args.size() << " is provided";
+                TypeError(node, ss.str());
+            }
+            for(size_t i = 0; i < std::min(node->args.size(), type->argTypeList.size()); i++) {
+                node->args[i]->dispatch(this);
+                if(!type->argTypeList[i]->equals(node->args[i]->inferred_type)) {
+                    std::stringstream ss;
+                    ss  << "The " << i << "th argument of function '" << node->name 
+                    << "' is expected to have type "
+                    << type->argTypeList[i]->to_string() << ", but "
+                    << node->args[i]->inferred_type->to_string() << " is provided";
+                    TypeError(node, ss.str());
+                }
+            }
+            node->inferred_type = type->retType.get();
+            return analyzeInfo{
+                .type = node->inferred_type
+            };
+        }
+    } else {
+
+    }
+    return HASERROR;
+}
+
 analyzeInfo TypeChecker::evaluate(ArrayType *node)
 {
     size_t size = node->pendingDims.size();

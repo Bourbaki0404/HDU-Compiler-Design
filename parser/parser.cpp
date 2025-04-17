@@ -792,8 +792,32 @@ const std::vector<ruleAction> ruleWithAction = {
     rule(UnaryExp, {PrimaryExp}),
 
     // member access
-    rule(Exp, {Exp, DOT, ID}),
-    rule(Exp, {Exp, DOT, ID, LPR, FuncRParams, RPR}),
+    ruleAction(rule(Exp, {Exp, DOT, ID}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        expr *exp = dynamic_cast<expr*>(children[0]->ptr.release());
+        auto ma = new member_access(children[0]->location, expPtr(exp), children[2]->str_val);
+        res->set_node(nodePtr(ma));
+        return res;
+    }),
+    ruleAction(rule(Exp, {Exp, DOT, ID, LPR, FuncRParams, RPR}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        auto obj_expr = expPtr(static_cast<expr*>(children[0]->ptr.release()));
+        std::string method_name = children[2]->str_val;
+        auto call = static_cast<fun_call*>(children[4]->ptr.release());
+        
+        // Create a method call expression
+        auto method_call = new member_access(
+            children[0]->location,  // source location
+            std::move(obj_expr),    // object expression
+            method_name
+        );
+        for(size_t i = 0; i < call->args.size(); i++) {
+            method_call->args.push_back(std::move(call->args[call->args.size() - i - 1]));
+        }
+        method_call->isFunc = true;
+        res->set_node(nodePtr(method_call));
+        return res;
+    }),
 
     ruleAction(rule(UnaryExp, {ID, LPR, FuncRParams, RPR}), [](std::vector<parseInfoPtr>& children) {
         
