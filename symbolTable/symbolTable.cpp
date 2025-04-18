@@ -24,6 +24,11 @@ bool SymbolTable::exists(const std::string &symbol)
     return false; 
 }
 
+bool SymbolTable::isInCurrentScope(const std::string& symbol) {
+    if(scopes.back().find(symbol) == scopes.back().end()) return false;
+    return true;
+}
+
 Symbol SymbolTable::getValue(const std::string &symbol)
 {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {

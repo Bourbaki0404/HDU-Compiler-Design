@@ -26,8 +26,17 @@ public:
     int depth = 0;
 public:
     SymbolTable();
+
+    // insert a symbol into the current scope
     bool insert(const std::string& symbol, Symbol sym);
+
+    // return true if the symbol exists in any scope
     bool exists(const std::string& symbol);
+
+    // return true if the symbol exists at current scope 
+    bool isInCurrentScope(const std::string& symbol);
+
+    // get the item of the table
     Symbol getValue(const std::string& symbol);
     void beginScope();
     void endScope();

@@ -374,13 +374,6 @@ void TypeChecker::analyzeFunctionBody(func_def *node) {
 analyzeInfo TypeChecker::analyze(func_def* node) {
     std::cout << "Entering function: " << node->name << "\n";
     FuncType *p = new FuncType();
-
-    if(symbolTable->exists(node->name)) {
-        std::stringstream ss;
-        ss << "Function redefined in the global scope";
-        TypeError(node, ss.str());
-        return HASERROR;
-    }
     
     for(size_t i = 0; i < node->params.size(); i++) {
         node->params[i]->type->evaluate(this);
@@ -398,6 +391,13 @@ analyzeInfo TypeChecker::analyze(func_def* node) {
     if(node->is_constructor && node->name != currentClassDef->name) {
         TypeError(node, "The class constructor '" + node->name + "' must be of the same name as the class");
     }
+    if(symbolTable->isInCurrentScope(node->name)) {
+        std::stringstream ss;
+        ss << "Function redefined in the global scope";
+        TypeError(node, ss.str());
+        return HASERROR;
+    }
+
     symbolTable->insert(node->name, Symbol{.kind = FUNCTION,
                                            .type = p,
                                            .data = nullptr});
@@ -530,9 +530,11 @@ void TypeChecker::analyzeInit(var_def* node) {
 }
 
 analyzeInfo TypeChecker::analyze(var_def* node) {
-    if(symbolTable->exists(node->id)) {
+    if(symbolTable->isInCurrentScope(node->id)) {
         std::stringstream ss;
-        ss << "Variable redefined in the current scope";
+        ss  << "Variable '"
+            << node->id
+            <<"'is redefined in the current scope";
         TypeError(node, ss.str());
         return analyzeInfo();
     }
