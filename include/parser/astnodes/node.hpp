@@ -60,7 +60,6 @@ using lvalPtr = std::unique_ptr<lval_expr>;
 using stmtPtr = std::unique_ptr<stmt>;
 using blockPtr = std::unique_ptr<block_stmt>;
 using funcparamPtr = std::unique_ptr<func_param>;
-using funcDefPtr = std::unique_ptr<func_def>;  
 using initValPtr = std::unique_ptr<init_val>;
 using classPtr = std::unique_ptr<class_def>;
 
@@ -268,23 +267,16 @@ struct func_param : public node, public typeEvaluator {
 };
 
 
-struct func_def : public node, public typeEvaluator {
+struct func_def : public node {
     func_def(std::pair<size_t, size_t> loc);
-    void add_param(funcparamPtr param);
     void set_body(blockPtr body);
-    void set_ret_type(std::string type);
-    void set_id_reverse_params(std::string id);
-    void evaluateType() override;
-    void setLoc(std::pair<size_t, size_t> loc);
     std::string to_string() override;
     void printArgList(std::string prefix, std::string info_prefix);
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
     void setCtor();
-    TypePtr ret_type;
-    FuncType *type; // will be only modified by the typechecker
+    FuncType *type; //will be evaluated during type checking
     std::string name;
-    std::vector<funcparamPtr> params;
     std::vector<nodePtr> body;
     bool is_constructor = false;
 };
@@ -292,11 +284,7 @@ struct func_def : public node, public typeEvaluator {
 struct var_def : public node {
     var_def(std::pair<size_t, size_t> loc);
     void setId(const std::string& name);
-    void setLoc(std::pair<size_t, size_t> pair);
     void setConst(bool is_const);
-    void addDim(expPtr p);
-    void finalizeArrayType(std::string type);
-    void evaluateType();
     void setInitVal(nodePtr val);
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;

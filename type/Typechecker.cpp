@@ -343,8 +343,8 @@ void TypeChecker::analyzeFunctionBody(func_def *node) {
     // symbolTable->printCurScope();
     currentFuncDef = node;
     symbolTable->beginScope();
-    for(size_t i = 0; i < node->params.size(); i++) {
-        symbolTable->insert(node->params[i]->id, 
+    for(size_t i = 0; i < node->type->argTypeList.size(); i++) {
+        symbolTable->insert(node->type->bindings[i], 
             Symbol{
                 .kind = VARIABLE,
                 .type = node->type->argTypeList[i].get()
@@ -374,14 +374,9 @@ void TypeChecker::analyzeFunctionBody(func_def *node) {
 analyzeInfo TypeChecker::analyze(func_def* node) {
     std::cout << "Entering function: " << node->name << "\n";
     FuncType *p = new FuncType();
-    
-    for(size_t i = 0; i < node->params.size(); i++) {
-        node->params[i]->type->evaluate(this);
-        // std::cout << "Arg(" << i << ") type " << node->params[i]->type->to_string() << "\n";
-        p->addArgType(std::move(node->params[i]->type));
-    }
+    node->type->evaluate(this);
     if(!node->is_constructor) 
-        p->setRetType(std::move(node->ret_type));
+        p->setRetType(std::move(node->type->retType));
     else
         p->setRetType(nullptr); //constructor will not return a value
 

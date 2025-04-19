@@ -122,7 +122,9 @@ bool ArrayType::equals(Type* other) {
 }
 
 FuncType::FuncType()
-: Type(TypeKind::Function) {}
+: Type(TypeKind::Function) {
+    retType = nullptr;
+}
 
 void FuncType::setRetTypeAndReverse(TypePtr ptr) {
     this->retType = std::move(ptr);
@@ -172,6 +174,25 @@ std::string FuncType::to_string() {
     }
     res += ")";
     return res;
+}
+
+PointerType::PointerType()
+: Type(TypeKind::Pointer){
+}
+
+bool PointerType::equals(Type *other) {
+    return elementType->equals(other);
+}
+
+void PointerType::setConst() {
+    is_const = true;
+}
+
+std::string PointerType::to_string() {
+    return "*" + (elementType ? elementType->to_string() : "");
+}
+
+void PointerType::evaluate(TypeChecker *ptr) {
 }
 
 ClassType::ClassType(std::string name, std::string base) 

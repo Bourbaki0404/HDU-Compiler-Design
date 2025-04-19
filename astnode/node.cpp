@@ -415,10 +415,6 @@ func_def::func_def(std::pair<size_t, size_t> loc) : node(loc) {
     kind = ASTKind::Func_Def;
 }
 
-void func_def::add_param(funcparamPtr param) {
-    params.push_back(std::move(param));
-}
-
 void func_def::set_body(blockPtr body) {
     for(auto &p : body->items) {
         this->body.push_back(std::move(p));
@@ -426,40 +422,28 @@ void func_def::set_body(blockPtr body) {
     body->items.clear();
 }
 
-void func_def::set_ret_type(std::string type) {
-    this->ret_type = TypeFactory::getTypeFromName(type);
-}
-
-void func_def::set_id_reverse_params(std::string id) {
-    this->name = id;
-    std::reverse(this->params.begin(), this->params.end());
-}
-
-void func_def::evaluateType() {
-    for(auto &param : params) {
-        param->evaluateType();
-    }
-}
-
-void func_def::setLoc(std::pair<size_t, size_t> loc) {
-    this->location = loc;
-}
-
 std::string func_def::to_string() {
     if(is_constructor) {
         return "Ctor <id: " + name + ">";
     } else {
-        return "FuncDef <ret_type: " + (ret_type ? ret_type->to_string() : "") + ", id: " + name + ">";
+        return "FuncDef <ret_type: " + (type ? type->retType->to_string() : "") + ", id: " + name + ">";
     }
+    return {};
 }
 
 void func_def::printArgList(std::string prefix, std::string info_prefix) {
     std::cout << info_prefix << "paramList\n";
-    for (size_t i = 0; i < params.size(); ++i) {
-        if(i != params.size() - 1) {
-            params[i]->printAST(prefix + "│   ", prefix + "├── ");
+    for (size_t i = 0; i < type->argTypeList.size()  ; ++i) {
+        if(i != type->argTypeList.size() - 1) {
+            std::cout   << prefix + "├── (arg" + std::to_string(i) + " "
+                        << type->bindings[i] 
+                        << " "
+                        << type->argTypeList[i]->to_string() + "\n";
         } else {
-            params[i]->printAST(prefix + "    ", prefix + "└── ");
+            std::cout   << prefix + "└── (arg" + std::to_string(i) + " " 
+                        << type->bindings[i]
+                        << " "
+                        << type->argTypeList[i]->to_string() + "\n";
         }
     }
 }
@@ -495,33 +479,9 @@ void var_def::setId(const std::string& name) {
     id = name;
 }
 
-void var_def::setLoc(std::pair<size_t, size_t> pair) {
-    location = pair;
-}
 
 void var_def::setConst(bool is_const) {
     this->is_const = is_const;
-}
-
-void var_def::addDim(expPtr p) {
-    if(type == nullptr) {
-        type = TypeFactory::getArray();
-    }
-    ArrayType* ptr = static_cast<ArrayType*>(type.get());
-    ptr->addDim(std::move(p));
-}
-
-void var_def::finalizeArrayType(std::string type_name) {
-    if(this->type == nullptr) {
-        this->type = TypeFactory::getTypeFromName(type_name);
-    } else if(this->type->kind == TypeKind::Array) {
-        ArrayType* ptr = static_cast<ArrayType*>(this->type.get());
-        ptr->setBaseTypeAndReverse(TypeFactory::getTypeFromName(type_name));
-    }
-}
-
-void var_def::evaluateType() {
-    if(this->type) this->type->evaluate(nullptr);
 }
 
 void var_def::setInitVal(nodePtr val) {

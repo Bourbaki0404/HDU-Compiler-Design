@@ -21,7 +21,6 @@ using lvalPtr = std::unique_ptr<lval_expr>;
 using stmtPtr = std::unique_ptr<stmt>;
 using blockPtr = std::unique_ptr<block_stmt>;
 using funcparamPtr = std::unique_ptr<func_param>;
-using funcDefPtr = std::unique_ptr<func_def>;  
 using initValPtr = std::unique_ptr<init_val>;
 
 enum TypeKind {
@@ -36,6 +35,10 @@ enum TypeKind {
     Function,
     ClassVar,
     Error // when type error happens
+};
+
+struct HasBindings {
+    std::vector<std::string> bindings;
 };
 
 struct Type {
@@ -91,7 +94,7 @@ struct ArrayType : public Type {
     TypePtr element_type;
 };
 
-struct FuncType : public Type {
+struct FuncType : public Type, public HasBindings {
     FuncType();
     void setRetTypeAndReverse(TypePtr ptr);
     void setRetType(TypePtr ptr);
@@ -105,6 +108,16 @@ struct FuncType : public Type {
 };
 
 using FuncTypePtr = std::unique_ptr<FuncType>;
+
+struct PointerType : public Type {
+    PointerType();
+    bool equals(Type *other) override;
+    void setConst() override;
+    std::string to_string() override;
+    void evaluate(TypeChecker *ptr) override;
+    TypePtr elementType;
+    size_t depth;
+};
 
 enum AccessSpecifier {
     PUBLIC, PRIVATE

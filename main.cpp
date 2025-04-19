@@ -27,16 +27,14 @@ int (main) (int argc, char* argv[]) {
     // const auto &table = computeLRTable(firstSets, start);
     // exportLRTableToCSV(table, "table.csv");
     LRTable table1 = importLRTableFromCSV("table.csv");
-    auto result = std::move(Parse(tokens, table1, false));
-    if(result.parseTree == nullptr) {
-        return -1;
-    }
-    result.node->printAST("", "");
-    TypeChecker *ptr = new TypeChecker;
-    ptr->analyze(static_cast<program*>(result.node.get()));
-    result.node->printAST("", "");
-    ptr->dumpErrors(std::string(argv[1]));
-    // visualizeAsTree(parsetree, "", true);
-    int f = 0;
+    auto result = std::move(Parse(tokens, table1, true));
+    // if(result.node == nullptr) {
+    //     return -1;
+    // }
+    // result.node->printAST("", "");
+    // TypeChecker *ptr = new TypeChecker;
+    // ptr->analyze(static_cast<program*>(result.node.get()));
+    // result.node->printAST("", "");
+    // ptr->dumpErrors(std::string(argv[1]));
     return 0;
 }

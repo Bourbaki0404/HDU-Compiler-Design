@@ -248,7 +248,13 @@ const std::unordered_map<symbolType, std::string> symbolTypeNames = {
     {ClassBody, "ClassBody"},
     {ClassMember, "ClassMember"},
     {ClassMemberList, "ClassMemberList"},
-    {ConstructorDef, "ConstructorDef"}
+    {ConstructorDef, "ConstructorDef"},
+
+    {Declarator,"Declarator"}, 
+    {SimpleDeclarator, "SimpleDeclarator"}, 
+    {DirectDeclarator, "DirectDeclarator"},
+    {TypeSuffix, "TypeSuffix"}, 
+    {TypeDeclIdxTail, "TypeDeclIdxTail"}
 };
 
 const auto initLoc = std::pair<size_t, size_t>{-1, -1};
@@ -258,7 +264,7 @@ SemanticAction binaryFactory() {
         std::cout << "fuck\n";
         auto left = expPtr(static_cast<expr*>(children[0]->ptr.release()));
         auto right = expPtr(static_cast<expr*>(children[2]->ptr.release()));
-        auto ptr = new binary_expr(left->location, operatorSymbols.at(children[1]->type), 
+        auto ptr = new binary_expr(left->location, operatorSymbols.at(children[1]->kind), 
                                     std::move(left), std::move(right));
         parseInfoPtr res = std::make_unique<parseInfo>(ptr->location);
         res->set_node(nodePtr(ptr));
@@ -269,7 +275,7 @@ SemanticAction binaryFactory() {
 SemanticAction unaryFactory() {
     return [](std::vector<parseInfoPtr>& children) {
         auto operand = expPtr(static_cast<expr*>(children[1]->ptr.release()));
-        auto ptr = new unary_expr(children[0]->location, symbolTypeNames.at(children[0]->type), 
+        auto ptr = new unary_expr(children[0]->location, symbolTypeNames.at(children[0]->kind), 
                                     std::move(operand));
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         res->set_node(nodePtr(ptr));
@@ -297,23 +303,23 @@ SemanticAction compUnitFactory_1() {
     };
 }
 
-SemanticAction funcDefFactory() {
-    return [](std::vector<parseInfoPtr>& children) {
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+// SemanticAction funcDefFactory() {
+//     return [](std::vector<parseInfoPtr>& children) {
+//         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
 
-        // Create a new function definition with the specified return type and name
-        auto funcDef = static_cast<func_def*>(children[3]->ptr.release());
-        funcDef->set_ret_type(children[0]->str_val);
-        funcDef->set_id_reverse_params(children[1]->str_val);
+//         // Create a new function definition with the specified return type and name
+//         auto funcDef = static_cast<func_def*>(children[3]->ptr.release());
+//         funcDef->set_ret_type(children[0]->str_val);
+//         funcDef->set_id_reverse_params(children[1]->str_val);
 
-        funcDef->setLoc(children[0]->location);
-        // funcDef->evaluateType();//test
-        // Set the function body (block)
-        funcDef->set_body(blockPtr(static_cast<block_stmt*>(children[5]->ptr.release())));
-        res->set_node(funcDefPtr(funcDef));
-        return res;
-    };
-}
+//         funcDef->setLoc(children[0]->location);
+//         // funcDef->evaluateType();//test
+//         // Set the function body (block)
+//         funcDef->set_body(blockPtr(static_cast<block_stmt*>(children[5]->ptr.release())));
+//         res->set_node(funcDefPtr(funcDef));
+//         return res;
+//     };
+// }
 
 SemanticAction varDefFactory() {
     return [](std::vector<parseInfoPtr> &children) -> parseInfoPtr {
@@ -379,11 +385,11 @@ const std::vector<ruleAction> ruleWithAction = {
     ruleAction(rule(ConstructorDef, {ID, LPR, FuncFParams, RPR, Block}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         auto funcDef = static_cast<func_def*>(children[2]->ptr.release());
-        funcDef->set_id_reverse_params(children[0]->str_val);
-        funcDef->setLoc(children[0]->location);
+        // funcDef->set_id_reverse_params(children[0]->str_val);
+        // funcDef->setLoc(children[0]->location);
         funcDef->set_body(blockPtr(static_cast<block_stmt*>(children[4]->ptr.release())));
         funcDef->setCtor();
-        res->set_node(funcDefPtr(funcDef));
+        res->set_node(nodePtr(funcDef));
         return res;
     }),// optional: constructor
 
@@ -391,31 +397,45 @@ const std::vector<ruleAction> ruleWithAction = {
     rule(Decl, {ConstDecl}),
     rule(Decl, {VarDecl}),
 
-    // Types
-    rule(Type, {KW_INT}),
-    rule(Type, {ID}),
-
-    // Constant Declarations
-    ruleAction(rule(ConstDecl, {KW_CONST, Type, ConstDef, ConstDeclTail, SEMICOLON}), [](std::vector<parseInfoPtr>& children) {
+    // Elementary Types
+    ruleAction(rule(Type, {KW_INT}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        auto tail = static_cast<var_decl*>(children[3]->ptr.release());
-        tail->addVarDef(vardefPtr(static_cast<var_def*>(children[2]->ptr.release())));
-        tail->setTypeAndReverse(children[1]->str_val);
-        // std::cout << "je\n";
-        res->set_node(nodePtr(tail));
-        tail->setLoc(children[0]->location);
+        res->set_type(TypeFactory::getInt().release());
         return res;
     }),
-    ruleAction(rule(ConstDeclTail, {COMMA, ConstDef, ConstDeclTail}), varDefFactory()),
-    ruleAction(rule(ConstDeclTail, {}), [](std::vector<parseInfoPtr>&) {
-        auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1});
-        auto varDecl = std::make_unique<var_decl>(std::pair<size_t, size_t>{-1, -1});
-        varDecl->setConst(true);
-        res->set_node(std::move(varDecl));
+    ruleAction(rule(Type, {KW_VOID}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        res->set_type(TypeFactory::getVoid().release());
+        return res;
+    }),
+    ruleAction(rule(Type, {ID}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+
+        res->set_type(new ClassVarType(children[0]->str_val));
         return res;
     }),
 
-    // Variable Declarations
+    // // Constant Declarations
+    // ruleAction(rule(ConstDecl, {KW_CONST, Type, ConstDef, ConstDeclTail, SEMICOLON}), [](std::vector<parseInfoPtr>& children) {
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    //     auto tail = static_cast<var_decl*>(children[3]->ptr.release());
+    //     tail->addVarDef(vardefPtr(static_cast<var_def*>(children[2]->ptr.release())));
+    //     tail->setTypeAndReverse(children[1]->str_val);
+    //     // std::cout << "je\n";
+    //     res->set_node(nodePtr(tail));
+    //     tail->setLoc(children[0]->location);
+    //     return res;
+    // }),
+    // ruleAction(rule(ConstDeclTail, {COMMA, ConstDef, ConstDeclTail}), varDefFactory()),
+    // ruleAction(rule(ConstDeclTail, {}), [](std::vector<parseInfoPtr>&) {
+    //     auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1});
+    //     auto varDecl = std::make_unique<var_decl>(std::pair<size_t, size_t>{-1, -1});
+    //     varDecl->setConst(true);
+    //     res->set_node(std::move(varDecl));
+    //     return res;
+    // }),
+
+    // // Variable Declarations
     ruleAction(rule(VarDecl, {Type, VarDef, VarDeclTail, SEMICOLON}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         auto tail = static_cast<var_decl*>(children[2]->ptr.release());
@@ -436,34 +456,34 @@ const std::vector<ruleAction> ruleWithAction = {
     }),
 
     // Definitions
-    ruleAction(rule(ConstDef, {ID, ConstDefTail, ASSIGN, ConstInitVal}), [](std::vector<parseInfoPtr>& children) {
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    // ruleAction(rule(ConstDef, {ID, ConstDefTail, ASSIGN, ConstInitVal}), [](std::vector<parseInfoPtr>& children) {
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
 
-        std::string id = children[0]->str_val;
-        var_def* arr = static_cast<var_def*>(children[1]->ptr.release());
-        arr->setId(id);
-        arr->setInitVal(nodePtr(children[3]->ptr.release()));
-        res->set_node(nodePtr(arr));
-        return res;
-    }),
-    ruleAction(rule(ConstDefTail, {LBK, ConstExp, RBK, ConstDefTail}), [](std::vector<parseInfoPtr>& children) {
+    //     std::string id = children[0]->str_val;
+    //     var_def* arr = static_cast<var_def*>(children[1]->ptr.release());
+    //     arr->setId(id);
+    //     arr->setInitVal(nodePtr(children[3]->ptr.release()));
+    //     res->set_node(nodePtr(arr));
+    //     return res;
+    // }),
+    // ruleAction(rule(ConstDefTail, {LBK, ConstExp, RBK, ConstDefTail}), [](std::vector<parseInfoPtr>& children) {
         
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        auto tail = static_cast<var_def*>(children[3]->ptr.release());
-        expr *ptr = static_cast<expr*>(children[1]->ptr.release());
-        tail->addDim(expPtr(ptr));
-        res->set_node(nodePtr(tail));
-        return res;
-    }),
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    //     auto tail = static_cast<var_def*>(children[3]->ptr.release());
+    //     expr *ptr = static_cast<expr*>(children[1]->ptr.release());
+    //     tail->addDim(expPtr(ptr));
+    //     res->set_node(nodePtr(tail));
+    //     return res;
+    // }),
 
-    ruleAction(rule(ConstDefTail, {}),  [](std::vector<parseInfoPtr>&) {
-        auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1});
-        auto varDef = std::make_unique<var_def>(std::pair<size_t, size_t>{-1, -1});
-        res->set_node(std::move(varDef));
-        return res;
-    }),
+    // ruleAction(rule(ConstDefTail, {}),  [](std::vector<parseInfoPtr>&) {
+    //     auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1});
+    //     auto varDef = std::make_unique<var_def>(std::pair<size_t, size_t>{-1, -1});
+    //     res->set_node(std::move(varDef));
+    //     return res;
+    // }),
 
-    ruleAction(rule(VarDef, {ID, VarDefGroup}),[](std::vector<parseInfoPtr>& children) {
+    ruleAction(rule(VarDef, {Declarator}),[](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
 
         std::string id = children[0]->str_val;
@@ -473,39 +493,39 @@ const std::vector<ruleAction> ruleWithAction = {
         res->set_node(nodePtr(arr));
         return res;
     }),
-    ruleAction(rule(VarDef, {ID, VarDefGroup, ASSIGN, InitVal}), [](std::vector<parseInfoPtr>& children) {
+    ruleAction(rule(VarDef, {Declarator, ASSIGN, InitVal}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         std::string id = children[0]->str_val;
-        var_def* arr = static_cast<var_def*>(children[1]->ptr.release());
+        var_def* arr = new var_def(children[0]->location);
         arr->setId(id);
-        arr->setLoc(children[0]->location);
         arr->setInitVal(nodePtr(children[3]->ptr.release()));
         res->set_node(nodePtr(arr));
-        return res;
-    }),
-    ruleAction(rule(VarDefGroup, {LBK, ConstExp, RBK, VarDefGroup}), [](std::vector<parseInfoPtr>& children) {
         
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        auto tail = static_cast<var_def*>(children[3]->ptr.release());
-        expr *ptr = static_cast<expr*>(children[1]->ptr.release());
-        tail->addDim(expPtr(ptr));
-        res->set_node(nodePtr(tail));
         return res;
     }),
-    ruleAction(rule(VarDefGroup, {}), [](std::vector<parseInfoPtr>&) {
-        auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1});
-        auto varDef = std::make_unique<var_def>(std::pair<size_t, size_t>{-1, -1});
-        res->set_node(std::move(varDef));
-        return res;
-    }),
+    // ruleAction(rule(VarDefGroup, {LBK, ConstExp, RBK, VarDefGroup}), [](std::vector<parseInfoPtr>& children) {
+        
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    //     auto tail = static_cast<var_def*>(children[3]->ptr.release());
+    //     expr *ptr = static_cast<expr*>(children[1]->ptr.release());
+    //     tail->addDim(expPtr(ptr));
+    //     res->set_node(nodePtr(tail));
+    //     return res;
+    // }),
+    // ruleAction(rule(VarDefGroup, {}), [](std::vector<parseInfoPtr>&) {
+    //     auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1});
+    //     auto varDef = std::make_unique<var_def>(std::pair<size_t, size_t>{-1, -1});
+    //     res->set_node(std::move(varDef));
+    //     return res;
+    // }),
 
-    // Initialization
-    rule(ConstInitVal, {ConstExp}),
-    rule(ConstInitVal, {LBC, ConstInitValTail, RBC}),
-    rule(ConstInitValTail, {ConstInitVal, ConstInitValTailTail}),
-    rule(ConstInitValTail, {}),
-    rule(ConstInitValTailTail, {COMMA, ConstInitVal, ConstInitValTailTail}),
-    rule(ConstInitValTailTail, {}),
+    // // Initialization
+    // rule(ConstInitVal, {ConstExp}),
+    // rule(ConstInitVal, {LBC, ConstInitValTail, RBC}),
+    // rule(ConstInitValTail, {ConstInitVal, ConstInitValTailTail}),
+    // rule(ConstInitValTail, {}),
+    // rule(ConstInitValTailTail, {COMMA, ConstInitVal, ConstInitValTailTail}),
+    // rule(ConstInitValTailTail, {}),
 
     ruleAction(rule(InitVal, {Exp}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
@@ -545,86 +565,263 @@ const std::vector<ruleAction> ruleWithAction = {
     }),
 
     // Function Definitions
-    ruleAction(rule(FuncDef, {Type, ID, LPR, FuncFParams, RPR, Block}), funcDefFactory()),
-    ruleAction(rule(FuncDef, {KW_VOID, ID, LPR, FuncFParams, RPR, Block}),funcDefFactory()),
+    // ruleAction(rule(FuncDef, {Type, ID, LPR, FuncFParams, RPR, Block}), funcDefFactory()),
+    // ruleAction(rule(FuncDef, {KW_VOID, ID, LPR, FuncFParams, RPR, Block}),funcDefFactory()),
 
-    // Function Parameters
+    // // Function Parameters
+    // ruleAction(rule(FuncFParams, {FuncFParam, FuncFParamsTail}), [](std::vector<parseInfoPtr>& children) {
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    //     auto tail = static_cast<func_def*>(children[1]->ptr.release());
+    //     tail->add_param(funcparamPtr(static_cast<func_param*>(children[0]->ptr.release())));
+    //     res->set_node(nodePtr(tail));
+    //     return res;
+    // }),
+
+    // ruleAction(rule(FuncFParams, {}), [](std::vector<parseInfoPtr>&) {
+    //     // Create a func_def with no parameters
+    //     auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{std::pair<size_t, size_t>{-1, -1}});
+    //     auto funcDef = std::make_unique<func_def>(std::pair<size_t, size_t>{std::pair<size_t, size_t>{-1, -1}});
+    //     res->set_node(std::move(funcDef));
+    //     return res;
+    // }),
+    // ruleAction(rule(FuncFParamsTail, {COMMA, FuncFParam, FuncFParamsTail}), [](std::vector<parseInfoPtr>& children) {
+        
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    //     auto tail = static_cast<func_def*>(children[2]->ptr.release());
+    //     tail->add_param(funcparamPtr(static_cast<func_param*>(children[1]->ptr.release())));
+    //     res->set_node(nodePtr(tail));
+    //     return res;
+    // }),
+    // ruleAction(rule(FuncFParamsTail, {}),[](std::vector<parseInfoPtr>&) {
+    //     // Create a func_def with no parameters
+    //     auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1});
+    //     auto funcDef = std::make_unique<func_def>(std::pair<size_t, size_t>{-1, -1});
+
+    //     // No parameters, just set the node
+    //     res->set_node(std::move(funcDef));
+    //     return res;
+    // }),
+    // ruleAction(rule(FuncFParam, {Type, ID, FuncFParamTail}), [](std::vector<parseInfoPtr>& children) {
+        
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    //     std::string type = children[0]->str_val;
+    //     std::string id = children[1]->str_val;
+
+    //     if (children[2]) {
+    //         func_param* arr = static_cast<func_param*>(children[2]->ptr.release());
+    //         arr->setType(type);
+    //         arr->setId(id);
+    //         res->set_node(funcparamPtr(arr));
+    //     } else {
+    //         func_param* base = new func_param(children[0]->location);
+    //         base->setId(id);
+    //         base->setType(type);
+    //         res->set_node(funcparamPtr(base));
+    //     }
+
+    //     return res;
+    // }),
+    // ruleAction(rule(FuncFParamTail, {LBK, RBK, FuncFParamTailTail}), [](std::vector<parseInfoPtr>& children) {
+        
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    //     auto tail = static_cast<func_param*>(children[2]->ptr.release());
+    //     tail->addDim(nullptr);
+    //     res->set_node(funcparamPtr(tail));
+    //     return res;
+    // }),
+    // rule(FuncFParamTail, {}),
+    // ruleAction(rule(FuncFParamTailTail, {LBK, ConstExp, RBK, FuncFParamTailTail}), [](std::vector<parseInfoPtr>& children) {
+        
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    //     auto tail = static_cast<func_param*>(children[3]->ptr.release());
+    //     expr *ptr = static_cast<expr*>(children[1]->ptr.release());
+    //     tail->addDim(expPtr(ptr));
+    //     res->set_node(nodePtr(tail));
+    //     return res;
+    // }),
+    // ruleAction(rule(FuncFParamTailTail, {}), [](std::vector<parseInfoPtr>&) {
+    //     parseInfoPtr res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1}); //loc not used
+    //     func_param *p = new func_param(std::pair<size_t, size_t>{-1, -1});
+    //     res->set_node(nodePtr(p));
+    //     return res;
+    // }),
+    ruleAction(rule(FuncDef, {Type, Declarator, Block}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        auto funcDef = new func_def(children[0]->location);
+        funcDef->name = children[1]->str_val;
+        funcDef->set_body(blockPtr(static_cast<block_stmt*>(children[2]->ptr.release())));
+        if(children[1]->type->kind != TypeKind::Function) {
+            std::cout << "funcdef error, not a function type\n";
+            res->set_node(nodePtr(funcDef));
+            return res;
+        } 
+        FuncType *fun = dynamic_cast<FuncType*>(children[1]->type);
+        fun->retType = TypePtr(children[0]->type);
+        funcDef->type = fun;
+        std::reverse(funcDef->type->argTypeList.begin(), funcDef->type->argTypeList.end());
+        std::reverse(funcDef->type->bindings.begin(), funcDef->type->bindings.end());
+        res->set_node(nodePtr(funcDef));
+        return res;
+    }),
+
+    ruleAction(rule(Declarator, {STAR, Declarator}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        res->set_str(children[0]->str_val);
+        struct Type *type = children[1]->type;
+        if(type == nullptr) {
+            children[1]->type = new PointerType();
+        } else if(type->kind == TypeKind::Array) {
+            ArrayType *arr = dynamic_cast<ArrayType*>(type);
+            if(arr->element_type == nullptr) {
+                PointerType *pointer = new PointerType();
+                pointer->elementType = nullptr;
+                arr->element_type = TypePtr(pointer);
+            } else if(arr->element_type->kind == TypeKind::Pointer && 
+                    ((PointerType*)(arr->element_type.get()))->elementType == nullptr){
+                auto ptr = (PointerType*)(arr->element_type.get());
+                ptr->depth++;
+            } else {
+                std::cout << "Pointer Fault\n";
+                while(1);
+            }
+        } else if(type->kind == TypeKind::Function) {
+            FuncType *fun = dynamic_cast<FuncType*>(type);
+            if(fun->retType == nullptr) {
+                PointerType *pointer = new PointerType();
+                pointer->elementType = nullptr;
+                fun->retType = TypePtr(pointer);
+            } else if(fun->retType->kind == TypeKind::Pointer && 
+                    ((PointerType*)(fun->retType.get()))->elementType == nullptr) {
+                auto ptr = (PointerType*)(fun->retType.get());
+                ptr->depth++;
+            } else {
+                std::cout << "Pointer Fault\n";
+                while(1);
+            }
+        }
+        res->set_type(children[1]->type);
+        res->set_str(children[1]->str_val);
+        return res;
+    }),
+
+    rule(Declarator, {DirectDeclarator}),
+
+    ruleAction(rule(DirectDeclarator, {SimpleDeclarator, TypeSuffix}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        res->set_str(children[0]->str_val);
+        res->set_type(children[1]->type);
+        return res;
+    }),
+
+    ruleAction(rule(DirectDeclarator, {SimpleDeclarator}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        res->set_str(children[0]->str_val);
+        res->set_type(nullptr);
+        return res;
+    }),
+
+    ruleAction(rule(TypeSuffix, {LBK, ConstExp, RBK, TypeDeclIdxTail}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        ArrayType *type = dynamic_cast<ArrayType*>(children[3]->type);
+        type->addDim(expPtr(dynamic_cast<expr*>(children[1]->ptr.release())));
+        res->set_type(type);
+        return res;
+    }),
+
+    ruleAction(rule(TypeDeclIdxTail, {LBK, ConstExp, RBK}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        ArrayType *type = new ArrayType();
+        type->addDim(expPtr(dynamic_cast<expr*>(children[1]->ptr.release())));
+        res->set_type(type);
+        return res;
+    }),
+
+    ruleAction(rule(TypeSuffix, {LPR, FuncFParams, RPR}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        res->set_type(children[1]->type);
+        return res;
+    }),
+
+    ruleAction(rule(TypeSuffix, {LPR, RPR}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        FuncType *fun = new FuncType();
+        fun->addArgType(TypeFactory::getVoid());
+        fun->bindings.push_back("");
+        res->set_type(fun);
+        return res;
+    }),
+
+    ruleAction(rule(FuncFParams, {FuncFParam}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        FuncType *fun = new FuncType();
+        fun->addArgType(TypePtr(children[0]->type));
+        fun->bindings.push_back(children[0]->str_val);
+        res->set_type(fun);
+        return res;
+    }),
+
     ruleAction(rule(FuncFParams, {FuncFParam, FuncFParamsTail}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        auto tail = static_cast<func_def*>(children[1]->ptr.release());
-        tail->add_param(funcparamPtr(static_cast<func_param*>(children[0]->ptr.release())));
-        res->set_node(nodePtr(tail));
+        FuncType *fun = dynamic_cast<FuncType*>(children[1]->type);
+        fun->addArgType(TypePtr(children[0]->type));
+        fun->bindings.push_back(children[0]->str_val);
+        res->set_type(fun);
         return res;
     }),
 
-    ruleAction(rule(FuncFParams, {}), [](std::vector<parseInfoPtr>&) {
-        // Create a func_def with no parameters
-        auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{std::pair<size_t, size_t>{-1, -1}});
-        auto funcDef = std::make_unique<func_def>(std::pair<size_t, size_t>{std::pair<size_t, size_t>{-1, -1}});
-        res->set_node(std::move(funcDef));
-        return res;
-    }),
     ruleAction(rule(FuncFParamsTail, {COMMA, FuncFParam, FuncFParamsTail}), [](std::vector<parseInfoPtr>& children) {
-        
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        auto tail = static_cast<func_def*>(children[2]->ptr.release());
-        tail->add_param(funcparamPtr(static_cast<func_param*>(children[1]->ptr.release())));
-        res->set_node(nodePtr(tail));
+        FuncType *fun = dynamic_cast<FuncType*>(children[2]->type);
+        fun->addArgType(TypePtr(children[1]->type));
+        fun->bindings.push_back(children[1]->str_val);
+        res->set_type(fun);
         return res;
     }),
-    ruleAction(rule(FuncFParamsTail, {}),[](std::vector<parseInfoPtr>&) {
-        // Create a func_def with no parameters
-        auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1});
-        auto funcDef = std::make_unique<func_def>(std::pair<size_t, size_t>{-1, -1});
 
-        // No parameters, just set the node
-        res->set_node(std::move(funcDef));
+    ruleAction(rule(FuncFParamsTail, {COMMA, FuncFParam}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        FuncType *fun = new FuncType();
+        fun->addArgType(TypePtr(children[1]->type));
+        fun->bindings.push_back(children[1]->str_val);
+        res->set_type(fun);
         return res;
     }),
-    ruleAction(rule(FuncFParam, {Type, ID, FuncFParamTail}), [](std::vector<parseInfoPtr>& children) {
-        
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        std::string type = children[0]->str_val;
-        std::string id = children[1]->str_val;
 
-        if (children[2]) {
-            func_param* arr = static_cast<func_param*>(children[2]->ptr.release());
-            arr->setType(type);
-            arr->setId(id);
-            res->set_node(funcparamPtr(arr));
-        } else {
-            func_param* base = new func_param(children[0]->location);
-            base->setId(id);
-            base->setType(type);
-            res->set_node(funcparamPtr(base));
+    ruleAction(rule(FuncFParam, {Type, Declarator}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        if(children[1]->type == nullptr) { //no declarator
+            children[1]->type = children[0]->type;
+        } else if(children[1]->type->kind == TypeKind::Function) {
+            struct Type *type = children[1]->type;
+            FuncType *func = dynamic_cast<FuncType*>(type);
+            if(func->retType == nullptr) { //not a pointer
+                func->retType = TypePtr(children[0]->type);
+            } else if(func->retType->kind == TypeKind::Pointer) {
+                PointerType *pointer = dynamic_cast<PointerType*>(func->retType.get());
+                pointer->elementType = TypePtr(children[0]->type);
+            } else {
+                throw std::runtime_error("rule funcparam->type declarator\n");
+            }
+        } else if(children[1]->type->kind == TypeKind::Array) {
+            struct Type *type = children[1]->type;
+            ArrayType *arr = dynamic_cast<ArrayType*>(type);
+            if(arr->element_type == nullptr) { //not a pointer
+                arr->element_type = TypePtr(children[0]->type);
+            } else if(arr->element_type->kind == TypeKind::Pointer) {
+                PointerType *pointer = dynamic_cast<PointerType*>(arr->element_type.get());
+                pointer->elementType = TypePtr(children[0]->type);
+            } else {
+                throw std::runtime_error("rule funcparam->type declarator\n");
+            }
+        } else if(children[1]->type->kind == TypeKind::Pointer) {
+            dynamic_cast<PointerType*>(children[1]->type)->elementType = TypePtr(children[0]->type);
         }
+        res->set_type(children[1]->type);
+        res->str_val = children[1]->str_val;
+        return res;
+    }),
 
-        return res;
-    }),
-    ruleAction(rule(FuncFParamTail, {LBK, RBK, FuncFParamTailTail}), [](std::vector<parseInfoPtr>& children) {
-        
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        auto tail = static_cast<func_param*>(children[2]->ptr.release());
-        tail->addDim(nullptr);
-        res->set_node(funcparamPtr(tail));
-        return res;
-    }),
-    rule(FuncFParamTail, {}),
-    ruleAction(rule(FuncFParamTailTail, {LBK, ConstExp, RBK, FuncFParamTailTail}), [](std::vector<parseInfoPtr>& children) {
-        
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        auto tail = static_cast<func_param*>(children[3]->ptr.release());
-        expr *ptr = static_cast<expr*>(children[1]->ptr.release());
-        tail->addDim(expPtr(ptr));
-        res->set_node(nodePtr(tail));
-        return res;
-    }),
-    ruleAction(rule(FuncFParamTailTail, {}), [](std::vector<parseInfoPtr>&) {
-        parseInfoPtr res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1}); //loc not used
-        func_param *p = new func_param(std::pair<size_t, size_t>{-1, -1});
-        res->set_node(nodePtr(p));
-        return res;
-    }),
+    rule(SimpleDeclarator, {ID}),
 
     // Blocks and Statements
     ruleAction(rule(Block, {LBC, BlockItemTail, RBC}), [](std::vector<parseInfoPtr>& children) {
@@ -1359,8 +1556,6 @@ parseResult
 
     std::vector<parseInfoPtr> infoStack; 
 
-    std::vector<std::unique_ptr<parseTreeNode>> nodeStack;
-    nodeStack.push_back(std::make_unique<parseTreeNode>(parserRules[0].left));
 
     size_t i = 0; // Input position
     size_t steps = 0;
@@ -1401,14 +1596,13 @@ parseResult
                     auto node = std::make_unique<parseTreeNode>(
                         curSym
                     );
-                    nodeStack.push_back(std::move(node));
 
                     const auto &curTok = input[i];
 
                     parseInfoPtr ptr = std::make_unique<parseInfo>(curTok.location);
 
                     ptr->set_str(curTok.value);
-                    ptr->set_type(curSym);
+                    ptr->set_kind(curSym);
                     ptr->set_node(nullptr);
 
                     infoStack.push_back(std::move(ptr));
@@ -1435,7 +1629,6 @@ parseResult
                         std::cerr << "PARSE ERROR: Cannot reduce rule " << a.n 
                                   << " - not enough symbols on stack\n";
                         return parseResult{
-                                    .parseTree = nullptr,
                                     .node = nullptr
                                 };
                     }
@@ -1444,8 +1637,6 @@ parseResult
                     auto parent = std::make_unique<parseTreeNode>(r.left);
                     std::vector<parseInfoPtr> RHSChildren;
                     for (size_t j = 0; j < r.right.size(); j++) {
-                        parent->addChild(std::move(nodeStack.back()));
-                        nodeStack.pop_back();
                         symStack.pop_back();
                         stateStack.pop_back();
                         RHSChildren.push_back(std::move(infoStack.back()));
@@ -1455,7 +1646,10 @@ parseResult
                     std::reverse(RHSChildren.begin(), RHSChildren.end());
                     
 
-                    infoStack.push_back(ruleWithAction[a.n].action(RHSChildren));
+                    infoStack.push_back(
+                        ruleWithAction[a.n].action(RHSChildren)
+                        // nullptr
+                    );
                     
                     // std::cout << "infoStack size:" << infoStack.size() << std::endl;
                     auto ptr = infoStack.back().get();
@@ -1466,7 +1660,6 @@ parseResult
                     }
 
                     std::reverse(parent->children.begin(), parent->children.end());
-                    nodeStack.push_back(std::move(parent));
 
                     // Push left-hand side
                     symStack.push_back(r.left);
@@ -1477,7 +1670,6 @@ parseResult
                         std::cerr << "PARSE ERROR: No GOTO for state " << curState 
                                   << " and nonterminal '" << symbolTypeNames.at(r.left) << "'\n";
                         return parseResult{
-                                    .parseTree = nullptr,
                                     .node = nullptr
                                 };
                     }
@@ -1496,15 +1688,13 @@ parseResult
                         }
                         std::cout << "number of ast:" << infoStack.size() << std::endl;
                         return parseResult{
-                                    .parseTree = std::move(nodeStack.back()),
-                                    .node = std::move(infoStack.back()->ptr)
+                                    .node = std::move(infoStack.back())
                                 };
                     } else {
                         if (debug) {
                             std::cout << "opps, there are some unread text:" << symbolTypeNames.at(curSym) << " \n";
                         }
                         return parseResult{
-                                    .parseTree = nullptr,
                                     .node = nullptr
                                 };
                     }
@@ -1512,7 +1702,6 @@ parseResult
                 case GOTO: {
                     std::cerr << "PARSE ERROR: Unexpected GOTO action\n";
                     return parseResult{
-                                .parseTree = nullptr,
                                 .node = nullptr
                             };
                 }
@@ -1535,7 +1724,6 @@ parseResult
             }
             
             return parseResult{
-                                .parseTree = nullptr,
                                 .node = nullptr
                             };
         }

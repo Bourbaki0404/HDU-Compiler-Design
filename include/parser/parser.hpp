@@ -48,6 +48,9 @@ enum symbolType {
     // Empty symbol
     EMPTY,
 
+    // Type system
+    Declarator, SimpleDeclarator, DirectDeclarator, TypeSuffix, TypeDeclIdxTail,
+
     // Nonterminals
     CompUnit, Decl, ConstDecl, ConstDeclTail, Type, ConstDef, 
     ConstDefTail, ConstInitVal, ConstInitValTail, FuncFParamTailTail,
@@ -58,7 +61,7 @@ enum symbolType {
     MulExp, MulOp, AddExp, AddOp, RelExp, RelOp, EqExp, EqOp, LAndExp, LOrExp, ConstExp,
 
     // OOP
-    ClassDef, ClassBody, ClassMemberList, ClassMember, ConstructorDef
+    ClassDef, ClassBody, ClassMemberList, ClassMember, ConstructorDef,
 };
 
 
@@ -78,20 +81,23 @@ struct parseInfo {
             this->str_val = str_val;
         }
 
-        void set_type(symbolType type) {
-            this->type = type;
+        void set_kind(symbolType kind) {
+            this->kind = kind;
         }
         
         void set_node(nodePtr ptr) {
             this->ptr = std::move(ptr);
         }
+
+        void set_type(struct Type *type) {
+            this->type = type;
+        }
         
     public:
         std::string str_val;
-        // int int_val;
-        symbolType type;
+        symbolType kind;
         std::pair<size_t, size_t> location;
-        // std::vector<expPtr> dim; 
+        struct Type *type;
         nodePtr ptr = nodePtr(nullptr);
 };
 
@@ -223,8 +229,7 @@ struct ruleAction {
 };
 
 struct parseResult {
-    parserTreePtr parseTree;
-    nodePtr node;
+    parseInfoPtr node;
 };
 
 void visualizeAsTree(const parserTreePtr &node, const std::string& prefix, bool isLast);
