@@ -45,6 +45,10 @@ std::cout << "Entering class: " << node->name << "\n";
         return HASERROR;
     }
 
+    if(node->name == "this") {
+        TypeError(node, "'this' cannot be used as a class name");
+    }
+
     symbolTable->beginScope();
 
     // adding declarations
@@ -72,18 +76,17 @@ std::cout << "Entering class: " << node->name << "\n";
             while(1);
         }
     }
-
     // handling bodies
     for(size_t i = 0; i < node->children.size(); i++) {
-      if(node->kind == ASTKind::Func_Def) {
-        func_def *p = dynamic_cast<func_def*>(node);
-        analyzeFunctionBody(p);
-      } else if(node->kind == ASTKind::Var_Decl) {
-        var_decl *p = dynamic_cast<var_decl*>(node);
-        for(size_t i = 0; i < p->defs.size(); i ++) {
-            analyzeInit(p->defs[i].get());
+        if(node->children[i]->kind == ASTKind::Func_Def) {
+            func_def *p = dynamic_cast<func_def*>(node->children[i].get());
+            analyzeFunctionBody(p);
+        } else if(node->children[i]->kind == ASTKind::Var_Decl) {
+            var_decl *p = dynamic_cast<var_decl*>(node->children[i].get());
+            for(size_t i = 0; i < p->defs.size(); i ++) {
+                analyzeInit(p->defs[i].get());
+            }
         }
-      }
     }
     std::cout << "class scope:\n";
     symbolTable->printCurScope();
@@ -351,7 +354,7 @@ analyzeInfo TypeChecker::analyze(continue_stmt* node) {
 
 analyzeInfo TypeChecker::analyze(return_stmt* node) {
     if(node->value == nullptr) {
-        if(!currentFuncDef->type->retType->equals(TypeFactory::getVoid().release())) {
+        if(!currentFuncDef->is_constructor && !currentFuncDef->type->retType->equals(TypeFactory::getVoid().release())) {
             std::stringstream ss;
             ss  << "The return value should be of type "
                 << currentFuncDef->type->retType->to_string()
@@ -363,9 +366,11 @@ analyzeInfo TypeChecker::analyze(return_stmt* node) {
         return analyzeInfo();
     }
     auto info = node->value->dispatch(this);
-    if(!currentFuncDef->type->retType->equals(info.type)) {
+    if(currentFuncDef->is_constructor) {
+        TypeError(node, "The constructor shouldn't return any value");
+    } else if(!currentFuncDef->type->retType->equals(info.type)) {
         std::stringstream ss;
-        ss << "The return type should be " << currentFuncDef->type->retType->to_string()
+        ss << "The return type should be " << currentFuncDef->type->retType->to_string()  
            << ", but the actual type is " << info.type->to_string() << "";
         TypeError(node, ss.str());
         return HASERROR;
@@ -404,10 +409,15 @@ void TypeChecker::analyzeFunctionBody(func_def *node) {
         node->body[i]->printAST("","");
         node->body[i]->dispatch(this);
         if(node->body[i]->kind == ASTKind::Return_Stmt) {
-            hasReturnStmt = true;
+            return_stmt *rt = dynamic_cast<return_stmt*>(node->body[i].get());
+            if(rt->value) hasReturnStmt = true;
         }
     }
-    if(!node->type->retType->equals(TypeFactory::getVoid().get())) {
+    if(node->is_constructor || node->type->retType->equals(TypeFactory::getVoid().get())) {
+        if(hasReturnStmt) {
+            TypeError(node, "The constructor shouldn't return any value"); 
+        }
+    } else if(!node->type->retType->equals(TypeFactory::getVoid().get())) {
         if(!hasReturnStmt) {
             std::stringstream ss;
             ss  << "The return value should be of type "
@@ -429,6 +439,9 @@ analyzeInfo TypeChecker::analyze(func_def* node) {
     // symbolTable->printCurScope();
     if(node->is_constructor && node->name != currentClassDef->name) {
         TypeError(node, "The class constructor '" + node->name + "' must be of the same name as the class");
+    }
+    if(node->name == "this") {
+        TypeError(node, "'this' cannot be used as a function name");
     }
     if(symbolTable->isInCurrentScope(node->name)) {
         std::stringstream ss;
@@ -575,6 +588,10 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
             << node->id
             <<"'is redefined in the current scope";
         TypeError(node, ss.str());
+        return analyzeInfo();
+    }
+    if(node->id == "this") {
+        TypeError(node, "'this' cannot be used as a function name");
         return analyzeInfo();
     }
     if(node->type->equals(TypeFactory::getVoid().release())) {

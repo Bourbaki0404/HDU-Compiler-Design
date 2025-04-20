@@ -256,7 +256,7 @@ struct func_param : public node, public typeEvaluator {
     func_param(std::pair<size_t, size_t> loc);
     std::string to_string() override ;
     void setType(const std::string &type) ;
-    void evaluateType() ;
+    void evaluateType();
     void setId(const std::string& id) ;
     void addDim(expPtr p) ;
     void printAST(std::string prefix, std::string info_prefix) override ;
