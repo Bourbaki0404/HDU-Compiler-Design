@@ -96,8 +96,8 @@ const std::map<std::string, token::tokenType> operators = {
     {"=", token::tokenType::ASSIGN},
 
     // Member Access
-    {".", token::tokenType::DOT}
-    // {".", T}
+    {".", token::tokenType::DOT},
+    {"->", token::tokenType::POINTER_ACC}
 };
 
 size_t read_operator(const std::string &code, size_t start) {
@@ -143,7 +143,7 @@ std::string token_serialize(const token& token) {
         {token::NOT, "!"},
         {token::BIT_AND, "&"}, {token::BIT_OR, "|"},
         {token::BIT_XOR, "^"},
-        {token::SHL, "<<"}, {token::SHR, ">>"},
+        {token::SHL, "<<"}, {token::SHR, ">>"}, {token::POINTER_ACC, "->"},
 
         // Keywords
         {token::KW_IF, "IF"}, {token::KW_ELSE, "ELSE"},

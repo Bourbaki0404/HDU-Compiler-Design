@@ -397,6 +397,9 @@ void TypeChecker::analyzeFunctionBody(func_def *node) {
     currentFuncDef = node;
     symbolTable->beginScope();
     for(size_t i = 0; i < node->type->argTypeList.size(); i++) {
+        if(node->type->bindings[i] == "this") {
+            TypeError(node, "'this' cannot be used as an identifier of a parameter");
+        }
         symbolTable->insert(node->type->bindings[i], 
             Symbol{
                 .kind = VARIABLE,
@@ -591,7 +594,7 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
         return analyzeInfo();
     }
     if(node->id == "this") {
-        TypeError(node, "'this' cannot be used as a function name");
+        TypeError(node, "'this' cannot be explicitly declared");
         return analyzeInfo();
     }
     if(node->type->equals(TypeFactory::getVoid().release())) {
@@ -660,6 +663,84 @@ analyzeInfo TypeChecker::analyze(member_access *node) {
         return HASERROR;
     }
     ClassVarType *classType = dynamic_cast<ClassVarType*>(node->exp->inferred_type);
+    if(!symbolTable->exists(classType->classname)) {
+        TypeError(node, "The classname '" + classType->classname + "' is not bound");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    auto sym = symbolTable->getValue(classType->classname);
+    if(sym.kind != symbolKind::CLASS_DEF) {
+        TypeError(node, "The classname '" + classType->classname + "' is not bound to a class");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    ClassType *classdef = static_cast<ClassType*>(sym.type);
+    if(node->isFunc) {
+        if(classdef->methods.find(node->name) == classdef->methods.end()) {
+            // method not found
+            TypeError(node, "The class '" + classType->classname + "' does not have method '" + node->name + "'");
+            node->inferred_type = HASERROR.type;
+            return HASERROR;
+        } else {
+            MethodInfo info = classdef->methods[node->name];
+            FuncType *type = dynamic_cast<FuncType*>(info.type);
+            if(type->argTypeList.size() != node->args.size()) {
+                std::stringstream ss;
+                ss  << "Function '" << node->name << "' has "
+                    << type->argTypeList.size() << " arguments, but "
+                    << node->args.size() << " is provided";
+                TypeError(node, ss.str());
+            }
+            for(size_t i = 0; i < std::min(node->args.size(), type->argTypeList.size()); i++) {
+                node->args[i]->dispatch(this);
+                if(!type->argTypeList[i]->equals(node->args[i]->inferred_type)) {
+                    std::stringstream ss;
+                    ss  << "The " << i << "th argument of function '" << node->name 
+                    << "' is expected to have type "
+                    << type->argTypeList[i]->to_string() << ", but "
+                    << node->args[i]->inferred_type->to_string() << " is provided";
+                    TypeError(node, ss.str());
+                }
+            }
+            node->inferred_type = type->retType.get();
+            return analyzeInfo{
+                .type = node->inferred_type
+            };
+        }
+    } else {
+        if(classdef->fields.find(node->name) == classdef->fields.end()) {
+            // field not found
+            TypeError(node, "The class '" + classType->classname + "' does not have field '" + node->name + "'");
+            node->inferred_type = HASERROR.type;
+            return HASERROR;
+        }
+        auto info = classdef->fields[node->name];
+        node->inferred_type = info.type;
+        return analyzeInfo{
+            .type = info.type
+        };
+    }
+    return HASERROR;
+}
+
+analyzeInfo TypeChecker::analyze(pointer_acc *node) {
+    auto info = node->exp->dispatch(this);
+    if(node->exp->inferred_type->kind != TypeKind::Pointer) {
+        TypeError(node, "The expression at the left of the dot should be a pointer to an object, but its type is '" + node->exp->inferred_type->to_string() + "'");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+    PointerType *pointer = dynamic_cast<PointerType*>(node->exp->inferred_type);
+    if(pointer->elementType == nullptr) {
+        throw std::runtime_error("In analyze pointer_acc, pointer->elementtype is nullpointer");
+    }
+    if(!(pointer->elementType->kind == TypeKind::ClassVar)) {
+        TypeError(node, "The expression at the left of the dot should be a pointer to an object, but its type is '" + node->exp->inferred_type->to_string() + "'");
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
+    }
+
+    ClassVarType *classType = dynamic_cast<ClassVarType*>(pointer->elementType);
     if(!symbolTable->exists(classType->classname)) {
         TypeError(node, "The classname '" + classType->classname + "' is not bound");
         node->inferred_type = HASERROR.type;

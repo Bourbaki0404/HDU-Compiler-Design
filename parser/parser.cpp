@@ -47,6 +47,7 @@ symbolType tokenToSymbol(token::tokenType tokType) {
         case token::BIT_XOR: return BIT_XOR;
         case token::SHL: return SHL;
         case token::SHR: return SHR;
+        case token::POINTER_ACC: return POINTER_ACC;
 
         // Keywords
         case token::KW_IF: return KW_IF;
@@ -168,6 +169,7 @@ const std::unordered_map<symbolType, std::string> symbolTypeNames = {
     {BIT_XOR, "BIT_XOR"},
     {SHL, "SHL"},
     {SHR, "SHR"},
+    {POINTER_ACC, "POINTER_ACC"},
 
     // Keywords
     {KW_IF, "KW_IF"},
@@ -1001,6 +1003,34 @@ const std::vector<ruleAction> ruleWithAction = {
     rule(Number, {NUM}),
     rule(UnaryExp, {PrimaryExp}),
 
+    // pointer access
+    ruleAction(rule(Exp, {Exp, POINTER_ACC, ID}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        expr *exp = dynamic_cast<expr*>(children[0]->ptr.release());
+        auto ma = new pointer_acc(children[0]->location, expPtr(exp), children[2]->str_val);
+        res->set_node(nodePtr(ma));
+        return res;
+    }),
+    ruleAction(rule(Exp, {Exp, POINTER_ACC, ID, LPR, FuncRParams, RPR}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        auto obj_expr = expPtr(static_cast<expr*>(children[0]->ptr.release()));
+        std::string method_name = children[2]->str_val;
+        auto call = static_cast<fun_call*>(children[4]->ptr.release());
+        
+        // Create a method call expression
+        auto method_call = new pointer_acc(
+            children[0]->location,  // source location
+            std::move(obj_expr),    // object expression
+            method_name
+        );
+        for(size_t i = 0; i < call->args.size(); i++) {
+            method_call->args.push_back(std::move(call->args[call->args.size() - i - 1]));
+        }
+        method_call->isFunc = true;
+        res->set_node(nodePtr(method_call));
+        return res;
+    }),
+    
     // member access
     ruleAction(rule(Exp, {Exp, DOT, ID}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
@@ -1052,7 +1082,7 @@ const std::vector<ruleAction> ruleWithAction = {
     rule(UnaryOp, {PLUS}),
     rule(UnaryOp, {MINUS}),
     rule(UnaryOp, {NOT}),
-    rule(UnaryOp, {STAR}), //pointer dereference
+    rule(UnaryOp, {STAR}), //pointer access
 
     ruleAction(rule(FuncRParams, {Exp, FuncRParamsTail}), [](std::vector<parseInfoPtr>& children) {
         

@@ -257,7 +257,7 @@ void ClassVarType::evaluate(TypeChecker *ptr) {
 }
 
 std::string ClassVarType::to_string() {
-    return "class "+ classname;
+    return classname;
 }
 
 void ClassVarType::setConst() {

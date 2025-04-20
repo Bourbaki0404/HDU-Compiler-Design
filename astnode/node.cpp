@@ -720,3 +720,45 @@ constInfo member_access::const_eval(TypeChecker *ptr) {
         .type = nullptr
     };
 }
+
+pointer_acc::pointer_acc(std::pair<size_t, size_t> loc, expPtr exp, const std::string &name) 
+: expr(loc, nullptr){
+    this->exp = std::move(exp);
+    this->name = name;
+}
+
+// Convert node to string representation
+std::string pointer_acc::to_string() {
+    return "pointer_acc <kind " + std::string(isFunc ? "method" : "var") + ", member " + name + ">";
+}
+
+// Print AST structure
+void pointer_acc::printAST(std::string prefix, std::string info_prefix) {
+    std::cout << info_prefix << to_string() << locToString(location, error_msg);
+    if(!isFunc) {
+        exp->printAST(prefix + "     ", prefix + "└── objptr: ");
+    } else {
+        exp->printAST(prefix + "│    ", prefix + "├── objptr: ");
+        for(size_t i = 0; i < args.size(); i++) {
+            if (i != args.size() - 1) {
+                args[i]->printAST(prefix + "│    ", prefix + "├── arg " + std::to_string(i) + ") ");
+            } else {
+                args[i]->printAST(prefix + "     ", prefix + "└── arg " + std::to_string(i) + ") ");
+            }
+        }
+    }
+}
+
+// Type checking dispatch
+analyzeInfo pointer_acc::dispatch(TypeChecker *ptr) {
+    return ptr->analyze(this);
+}
+
+// Constant expression evaluation (if applicable)
+constInfo pointer_acc::const_eval(TypeChecker *ptr) {
+    return constInfo{
+        .is_const = false,
+        .value = nullptr,
+        .type = nullptr
+    };
+}

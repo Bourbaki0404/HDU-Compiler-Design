@@ -23,7 +23,7 @@ int (main) (int argc, char* argv[]) {
     exportLRTableToCSV(table, "table.csv");
 #endif
     LRTable table1 = importLRTableFromCSV("table.csv");
-    auto result = std::move(Parse(tokens, table1, true));
+    auto result = std::move(Parse(tokens, table1, false));
 
     // if(result.node == nullptr) {
     //     return -1;

@@ -14,6 +14,7 @@ struct func_param;
 struct func_def;
 struct init_val;
 struct class_def;
+struct pointer_acc;
 
 struct constInfo;
 struct TypeChecker;
@@ -351,6 +352,18 @@ public:
 
 struct member_access : expr {
     member_access(std::pair<size_t, size_t> loc, expPtr exp, const std::string &name);
+    std::string to_string() override;
+    void printAST(std::string prefix, std::string info_prefix) override;
+    analyzeInfo dispatch(TypeChecker *ptr) ;
+    constInfo const_eval(TypeChecker *ptr);
+    std::string name;
+    expPtr exp = nullptr;
+    bool isFunc = false;
+    std::vector<expPtr> args;
+};
+
+struct pointer_acc : expr {
+    pointer_acc(std::pair<size_t, size_t> loc, expPtr exp, const std::string &name);
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;

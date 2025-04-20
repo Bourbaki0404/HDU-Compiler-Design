@@ -30,6 +30,8 @@ struct var_decl;
 struct init_val;
 struct class_def;
 struct member_access;
+struct pointer_acc;
+
 
 struct Type;
 struct PrimitiveType;
@@ -146,6 +148,7 @@ struct TypeChecker {
     analyzeInfo analyze(init_val* node) ;
 
     analyzeInfo analyze(member_access *node);
+    analyzeInfo analyze(pointer_acc *node);
 
     void analyzeFunctionBody(func_def *node);
     void analyzeInit(var_def* node);

@@ -1,13 +1,12 @@
 // void f(int p){return;}
 
 class a {
-    int foo(int a, int this) {
+    int foo(int a, int b) {
         a + b;
         return a;
     }
     a(int a, int b){
-        int a;
-        int a;
+        int this;
         1 + 2;
         return 1;
     }
@@ -28,6 +27,7 @@ int foo1() {
 int ain(int c, int **b) {
     class a *c, *e;
     c * **b * 2;
+    e->foo(1, 1);
     *e.foo(c, c);
     int x = 1 + 1;
     return 1;

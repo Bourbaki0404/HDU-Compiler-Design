@@ -30,6 +30,8 @@ struct token {
         NOT,                    // !
         BIT_AND, BIT_OR, BIT_XOR, // & | ^
         SHL, SHR,               // << >>
+
+        POINTER_ACC,
         
         // Keywords
         KW_IF, KW_ELSE, KW_WHILE, KW_FOR,
