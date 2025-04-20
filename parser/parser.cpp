@@ -275,7 +275,7 @@ SemanticAction binaryFactory() {
 SemanticAction unaryFactory() {
     return [](std::vector<parseInfoPtr>& children) {
         auto operand = expPtr(static_cast<expr*>(children[1]->ptr.release()));
-        auto ptr = new unary_expr(children[0]->location, symbolTypeNames.at(children[0]->kind), 
+        auto ptr = new unary_expr(children[0]->location, operatorSymbols.at(children[0]->kind), 
                                     std::move(operand));
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         res->set_node(nodePtr(ptr));
@@ -384,38 +384,42 @@ const std::vector<ruleAction> ruleWithAction = {
 
     ruleAction(rule(ConstructorDef, {ID, LPR, FuncFParams, RPR, Block}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        auto funcDef = static_cast<func_def*>(children[2]->ptr.release());
-        // funcDef->set_id_reverse_params(children[0]->str_val);
-        // funcDef->setLoc(children[0]->location);
+        auto fun = static_cast<FuncType*>(children[2]->type);
+        auto funcDef = new func_def(children[0]->location);
+        funcDef->type = fun;
+        funcDef->name = children[0]->str_val;
         funcDef->set_body(blockPtr(static_cast<block_stmt*>(children[4]->ptr.release())));
         funcDef->setCtor();
+        
         res->set_node(nodePtr(funcDef));
         return res;
     }),// optional: constructor
+
+    ruleAction(rule(ConstructorDef, {ID, LPR, RPR, Block}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        auto funcDef = new func_def(children[0]->location);
+        auto fun = new FuncType();
+        funcDef->set_body(blockPtr(static_cast<block_stmt*>(children[3]->ptr.release())));
+        funcDef->setCtor();
+        funcDef->name = children[0]->str_val;
+        fun->addArgType(TypeFactory::getVoid());
+        fun->bindings.push_back("");
+        funcDef->type = fun;
+        res->set_node(nodePtr(funcDef));
+        return res;
+    }),
 
     // Declarations
     rule(Decl, {ConstDecl}),
     rule(Decl, {VarDecl}),
 
     // Elementary Types
-    ruleAction(rule(Type, {KW_INT}), [](std::vector<parseInfoPtr>& children) {
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        res->set_type(TypeFactory::getInt().release());
-        return res;
-    }),
-    ruleAction(rule(Type, {KW_VOID}), [](std::vector<parseInfoPtr>& children) {
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        res->set_type(TypeFactory::getVoid().release());
-        return res;
-    }),
-    ruleAction(rule(Type, {ID}), [](std::vector<parseInfoPtr>& children) {
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-
-        res->set_type(new ClassVarType(children[0]->str_val));
-        return res;
-    }),
-
-    // // Constant Declarations
+    rule(Type, {KW_INT}),
+    rule(Type, {KW_VOID}),
+    ruleAction(rule(Type, {KW_CLASS, ID}), [](std::vector<parseInfoPtr>& children) {
+        return std::move(children[1]);
+    }), 
+    // Constant Declarations
     // ruleAction(rule(ConstDecl, {KW_CONST, Type, ConstDef, ConstDeclTail, SEMICOLON}), [](std::vector<parseInfoPtr>& children) {
     //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
     //     auto tail = static_cast<var_decl*>(children[3]->ptr.release());
@@ -441,7 +445,6 @@ const std::vector<ruleAction> ruleWithAction = {
         auto tail = static_cast<var_decl*>(children[2]->ptr.release());
         tail->addVarDef(vardefPtr(static_cast<var_def*>(children[1]->ptr.release())));
         tail->setTypeAndReverse(children[0]->str_val);
-        // tail->evaluateType();//test
         res->set_node(nodePtr(tail));
         tail->setLoc(children[0]->location);
         return res;
@@ -485,11 +488,10 @@ const std::vector<ruleAction> ruleWithAction = {
 
     ruleAction(rule(VarDef, {Declarator}),[](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-
         std::string id = children[0]->str_val;
-        var_def* arr = static_cast<var_def*>(children[1]->ptr.release());
+        var_def* arr = new var_def(children[0]->location);
         arr->setId(id);
-        arr->setLoc(children[0]->location);
+        arr->type = TypePtr(children[0]->type);
         res->set_node(nodePtr(arr));
         return res;
     }),
@@ -498,9 +500,9 @@ const std::vector<ruleAction> ruleWithAction = {
         std::string id = children[0]->str_val;
         var_def* arr = new var_def(children[0]->location);
         arr->setId(id);
-        arr->setInitVal(nodePtr(children[3]->ptr.release()));
+        arr->setInitVal(nodePtr(children[2]->ptr.release()));
+        arr->type = TypePtr(children[0]->type);
         res->set_node(nodePtr(arr));
-        
         return res;
     }),
     // ruleAction(rule(VarDefGroup, {LBK, ConstExp, RBK, VarDefGroup}), [](std::vector<parseInfoPtr>& children) {
@@ -650,13 +652,18 @@ const std::vector<ruleAction> ruleWithAction = {
         auto funcDef = new func_def(children[0]->location);
         funcDef->name = children[1]->str_val;
         funcDef->set_body(blockPtr(static_cast<block_stmt*>(children[2]->ptr.release())));
-        if(children[1]->type->kind != TypeKind::Function) {
+        if(children[1]->type == nullptr || children[1]->type->kind != TypeKind::Function) {
             std::cout << "funcdef error, not a function type\n";
-            res->set_node(nodePtr(funcDef));
+            exit(1);
             return res;
         } 
         FuncType *fun = dynamic_cast<FuncType*>(children[1]->type);
-        fun->retType = TypePtr(children[0]->type);
+        if(fun->retType == nullptr) {
+            fun->retType = TypeFactory::getTypeFromName(children[0]->str_val);
+        } else if(fun->retType->kind == TypeKind::Pointer) {
+            PointerType *pointer = dynamic_cast<PointerType*>(fun->retType.get());
+            pointer->elementType = TypeFactory::getTypeFromName(children[0]->str_val).release();
+        }
         funcDef->type = fun;
         std::reverse(funcDef->type->argTypeList.begin(), funcDef->type->argTypeList.end());
         std::reverse(funcDef->type->bindings.begin(), funcDef->type->bindings.end());
@@ -680,6 +687,7 @@ const std::vector<ruleAction> ruleWithAction = {
                     ((PointerType*)(arr->element_type.get()))->elementType == nullptr){
                 auto ptr = (PointerType*)(arr->element_type.get());
                 ptr->depth++;
+                while(1);
             } else {
                 std::cout << "Pointer Fault\n";
                 while(1);
@@ -694,10 +702,14 @@ const std::vector<ruleAction> ruleWithAction = {
                     ((PointerType*)(fun->retType.get()))->elementType == nullptr) {
                 auto ptr = (PointerType*)(fun->retType.get());
                 ptr->depth++;
+
             } else {
                 std::cout << "Pointer Fault\n";
                 while(1);
             }
+        } else if(type->kind == TypeKind::Pointer) {
+            PointerType *pointer = dynamic_cast<PointerType*>(type);
+            pointer->depth++;
         }
         res->set_type(children[1]->type);
         res->set_str(children[1]->str_val);
@@ -789,16 +801,17 @@ const std::vector<ruleAction> ruleWithAction = {
 
     ruleAction(rule(FuncFParam, {Type, Declarator}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        struct Type *result_type = TypeFactory::getTypeFromName(children[0]->str_val).release();
         if(children[1]->type == nullptr) { //no declarator
-            children[1]->type = children[0]->type;
+            children[1]->type = result_type;
         } else if(children[1]->type->kind == TypeKind::Function) {
             struct Type *type = children[1]->type;
             FuncType *func = dynamic_cast<FuncType*>(type);
             if(func->retType == nullptr) { //not a pointer
-                func->retType = TypePtr(children[0]->type);
+                func->retType = TypePtr(result_type);
             } else if(func->retType->kind == TypeKind::Pointer) {
                 PointerType *pointer = dynamic_cast<PointerType*>(func->retType.get());
-                pointer->elementType = TypePtr(children[0]->type);
+                pointer->elementType = result_type;
             } else {
                 throw std::runtime_error("rule funcparam->type declarator\n");
             }
@@ -806,15 +819,15 @@ const std::vector<ruleAction> ruleWithAction = {
             struct Type *type = children[1]->type;
             ArrayType *arr = dynamic_cast<ArrayType*>(type);
             if(arr->element_type == nullptr) { //not a pointer
-                arr->element_type = TypePtr(children[0]->type);
+                arr->element_type = TypePtr(result_type);
             } else if(arr->element_type->kind == TypeKind::Pointer) {
                 PointerType *pointer = dynamic_cast<PointerType*>(arr->element_type.get());
-                pointer->elementType = TypePtr(children[0]->type);
+                pointer->elementType = result_type;
             } else {
                 throw std::runtime_error("rule funcparam->type declarator\n");
             }
         } else if(children[1]->type->kind == TypeKind::Pointer) {
-            dynamic_cast<PointerType*>(children[1]->type)->elementType = TypePtr(children[0]->type);
+            dynamic_cast<PointerType*>(children[1]->type)->elementType = result_type;
         }
         res->set_type(children[1]->type);
         res->str_val = children[1]->str_val;
@@ -1035,9 +1048,12 @@ const std::vector<ruleAction> ruleWithAction = {
         return res;
     }),
     ruleAction(rule(UnaryExp, {UnaryOp, UnaryExp}), unaryFactory()),
+
     rule(UnaryOp, {PLUS}),
     rule(UnaryOp, {MINUS}),
     rule(UnaryOp, {NOT}),
+    rule(UnaryOp, {STAR}), //pointer dereference
+
     ruleAction(rule(FuncRParams, {Exp, FuncRParamsTail}), [](std::vector<parseInfoPtr>& children) {
         
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
@@ -1429,8 +1445,14 @@ computeLRTable(
                     else
                         table[curId].insert({item.lookahead, action(actionType::ACC, ruleToId[item.rule])});
                 } else {
-                    std::cout << "conflict(1)! entry already exist! \n";
-                    exit(0);
+                    bool resolved = false;
+
+                    if(!resolved) {
+                        printLR1Items(curState.items);
+                        std::cout << "conflict(1)! entry already exist! \n";
+                        exit(0);
+                    }
+   
                 }
             }
         }

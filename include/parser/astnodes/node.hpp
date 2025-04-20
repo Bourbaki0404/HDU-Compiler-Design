@@ -289,6 +289,7 @@ struct var_def : public node {
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    void finalizeType(std::string type_name);
     std::string id;
     TypePtr type;
     nodePtr init_val;
@@ -303,7 +304,6 @@ struct var_decl : public node {
     void setTypeAndReverse(std::string name);
     void setLoc(std::pair<size_t, size_t> loc);
     void setConst(bool is_const);
-    void evaluateType();
     std::string to_string() override ;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;

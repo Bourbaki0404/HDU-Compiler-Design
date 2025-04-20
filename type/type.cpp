@@ -56,7 +56,9 @@ void PrimitiveType::evaluate(TypeChecker *ptr) {}
 
 // ArrayType
 ArrayType::ArrayType()
-    : Type(TypeKind::Array) {}
+    : Type(TypeKind::Array) {
+        element_type = nullptr;
+    }
 
 void ArrayType::setConst() {
     element_type->setConst();
@@ -178,10 +180,14 @@ std::string FuncType::to_string() {
 
 PointerType::PointerType()
 : Type(TypeKind::Pointer){
+    depth = 1;
+    elementType = nullptr;
 }
 
 bool PointerType::equals(Type *other) {
-    return elementType->equals(other);
+    if(other->kind != TypeKind::Pointer) return false;
+    auto pointer = dynamic_cast<PointerType*>(other);
+    return depth == pointer->depth && elementType->equals(pointer->elementType);
 }
 
 void PointerType::setConst() {
@@ -189,7 +195,7 @@ void PointerType::setConst() {
 }
 
 std::string PointerType::to_string() {
-    return "*" + (elementType ? elementType->to_string() : "");
+    return std::string(depth, '*') + (elementType ? elementType->to_string() : "");
 }
 
 void PointerType::evaluate(TypeChecker *ptr) {

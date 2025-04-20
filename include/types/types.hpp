@@ -115,7 +115,7 @@ struct PointerType : public Type {
     void setConst() override;
     std::string to_string() override;
     void evaluate(TypeChecker *ptr) override;
-    TypePtr elementType;
+    Type* elementType;
     size_t depth;
 };
 

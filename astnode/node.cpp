@@ -426,7 +426,7 @@ std::string func_def::to_string() {
     if(is_constructor) {
         return "Ctor <id: " + name + ">";
     } else {
-        return "FuncDef <ret_type: " + (type ? type->retType->to_string() : "") + ", id: " + name + ">";
+        return "FuncDef <ret_type: " + (type ? (type->retType ? type->retType->to_string() : "") : "") + ", id: " + name + ">";
     }
     return {};
 }
@@ -449,6 +449,7 @@ void func_def::printArgList(std::string prefix, std::string info_prefix) {
 }
 
 void func_def::printAST(std::string prefix, std::string info_prefix) {
+    if(type == nullptr) return;
     std::cout << info_prefix << to_string() << locToString(location, error_msg);
     printArgList(prefix + "│   ", prefix + "├── ");
     std::cout << prefix + "└── " + "block\n";
@@ -489,6 +490,7 @@ void var_def::setInitVal(nodePtr val) {
 }
 
 std::string var_def::to_string() {
+    // std::cout << ((PointerType*)type.get())->elementType << "hey\n";
     std::string res = "var_def <id " + id + ", type " + 
                      (is_const ? "const " : "") +
                      (type ? type->to_string() : "unknown") + "> " + error_msg;
@@ -539,12 +541,6 @@ void var_decl::setConst(bool is_const) {
     this->is_const = is_const;
 }
 
-void var_decl::evaluateType() {
-    for (auto& def : defs) {
-        def->evaluateType();
-    }
-}
-
 std::string var_decl::to_string() {
     return "VarDecl <type: " + std::string(is_const ? "const " : "") + typeName + ">";
 }
@@ -565,9 +561,32 @@ analyzeInfo var_decl::dispatch(TypeChecker *ptr)
     return ptr->analyze(this);
 }
 
+void var_def::finalizeType(std::string type_name) {
+    if(this->type == nullptr) {
+        this->type = TypeFactory::getTypeFromName(type_name);
+    } else if(this->type->kind == TypeKind::Array) {
+        ArrayType* ptr = dynamic_cast<ArrayType*>(this->type.get());
+        ptr->setBaseTypeAndReverse(TypeFactory::getTypeFromName(type_name));
+    } else if(this->type->kind == TypeKind::Pointer) {
+        PointerType* ptr = dynamic_cast<PointerType*>(this->type.get());
+        ptr->elementType = TypeFactory::getTypeFromName(type_name).release();
+    } else if(this->kind == TypeKind::Function) {
+        FuncType* fun = dynamic_cast<FuncType*>(this->type.get());
+        if(fun->retType == nullptr) {
+            fun->retType = TypeFactory::getTypeFromName(type_name);
+        } else if(fun->retType->kind == TypeKind::Array) {
+            ArrayType* ptr = dynamic_cast<ArrayType*>(fun->retType.get());
+            ptr->setBaseTypeAndReverse(TypeFactory::getTypeFromName(type_name));
+        } else if(fun->retType->kind == TypeKind::Pointer) {
+            PointerType* ptr = dynamic_cast<PointerType*>(fun->retType.get());
+            ptr->elementType = TypeFactory::getTypeFromName(type_name).release();
+        }
+    }
+}
+
 void var_decl::finalize() {
     for (auto &def : defs) {
-        def->finalizeArrayType(typeName);
+        def->finalizeType(typeName);
         def->setConst(is_const);
     }
     std::reverse(defs.begin(), defs.end());

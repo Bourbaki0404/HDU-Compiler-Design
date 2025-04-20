@@ -1,31 +1,31 @@
 // void f(int p){return;}
 
-// class a {
-//     a(int c, int p) {
-//         c + b;
-//     }
-//     int fda(int a, int b) {
-//         a + b;
-//     }
-//     int b = 2;
-// };
+class a {
+    int fda(int a, int b) {
+        a + b;
+    }
+    a(int a, int b){
+        int a;
+        int b;
+        1 + 2;
+    }
+};
 
-// int foo(int *a(int*[][2], int**[][3]), int b) {
-//     int g(int a, int b);
+int *foo(int *a[1][2], int ****b) {
+    int *k = b[1][2][3];
+    return a[1][1];
+}
 
-//     auto k = d[1];
-//     return b;
-// }
-int foo() {
+int foo1() {
+    int x = 2;
     return 1;
 }
 
-int **main(int a[1][2], int a(int a[1][2], int **b)) {
-    d.fda(1,1,1);
-    f(e);
-    if(arr) {
-        while(arr) {}
-        break;
-    }
-    break;
+
+
+int ain(int c, int *b) {
+    class a *c, *e;
+    c * b * 2;
+    int x = 1 + 1;
+    return 1;
 }
