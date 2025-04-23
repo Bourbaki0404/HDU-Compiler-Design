@@ -6,9 +6,7 @@ class a {
         return a;
     }
     a(int a, int b){
-        int this;
         1 + 2;
-        return 1;
     }
 };
 
@@ -24,11 +22,9 @@ int foo1() {
 
 
 
-int ain(int c, int **b) {
-    class a *c, *e;
-    c * **b * 2;
-    e->foo(1, 1);
-    *e.foo(c, c);
-    int x = 1 + 1;
+int main() {
+    int *p, *q;
+    int a[2];
+    int x = p < a;
     return 1;
 }

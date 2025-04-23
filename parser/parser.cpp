@@ -73,7 +73,8 @@ symbolType tokenToSymbol(token::tokenType tokType) {
         case token::INVALID: return INVALID;
 
         default:
-            throw std::runtime_error("Unknown token type");
+            std::cout << "unrecognized token at tokenToSymbol\n";
+            exit(1);
     }
 }
 
@@ -263,7 +264,7 @@ const auto initLoc = std::pair<size_t, size_t>{-1, -1};
 
 SemanticAction binaryFactory() {
     return [](std::vector<parseInfoPtr>& children) {
-        std::cout << "fuck\n";
+        // std::cout << "fuck\n";
         auto left = expPtr(static_cast<expr*>(children[0]->ptr.release()));
         auto right = expPtr(static_cast<expr*>(children[2]->ptr.release()));
         auto ptr = new binary_expr(left->location, operatorSymbols.at(children[1]->kind), 
@@ -568,87 +569,6 @@ const std::vector<ruleAction> ruleWithAction = {
         return res;
     }),
 
-    // Function Definitions
-    // ruleAction(rule(FuncDef, {Type, ID, LPR, FuncFParams, RPR, Block}), funcDefFactory()),
-    // ruleAction(rule(FuncDef, {KW_VOID, ID, LPR, FuncFParams, RPR, Block}),funcDefFactory()),
-
-    // // Function Parameters
-    // ruleAction(rule(FuncFParams, {FuncFParam, FuncFParamsTail}), [](std::vector<parseInfoPtr>& children) {
-    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-    //     auto tail = static_cast<func_def*>(children[1]->ptr.release());
-    //     tail->add_param(funcparamPtr(static_cast<func_param*>(children[0]->ptr.release())));
-    //     res->set_node(nodePtr(tail));
-    //     return res;
-    // }),
-
-    // ruleAction(rule(FuncFParams, {}), [](std::vector<parseInfoPtr>&) {
-    //     // Create a func_def with no parameters
-    //     auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{std::pair<size_t, size_t>{-1, -1}});
-    //     auto funcDef = std::make_unique<func_def>(std::pair<size_t, size_t>{std::pair<size_t, size_t>{-1, -1}});
-    //     res->set_node(std::move(funcDef));
-    //     return res;
-    // }),
-    // ruleAction(rule(FuncFParamsTail, {COMMA, FuncFParam, FuncFParamsTail}), [](std::vector<parseInfoPtr>& children) {
-        
-    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-    //     auto tail = static_cast<func_def*>(children[2]->ptr.release());
-    //     tail->add_param(funcparamPtr(static_cast<func_param*>(children[1]->ptr.release())));
-    //     res->set_node(nodePtr(tail));
-    //     return res;
-    // }),
-    // ruleAction(rule(FuncFParamsTail, {}),[](std::vector<parseInfoPtr>&) {
-    //     // Create a func_def with no parameters
-    //     auto res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1});
-    //     auto funcDef = std::make_unique<func_def>(std::pair<size_t, size_t>{-1, -1});
-
-    //     // No parameters, just set the node
-    //     res->set_node(std::move(funcDef));
-    //     return res;
-    // }),
-    // ruleAction(rule(FuncFParam, {Type, ID, FuncFParamTail}), [](std::vector<parseInfoPtr>& children) {
-        
-    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-    //     std::string type = children[0]->str_val;
-    //     std::string id = children[1]->str_val;
-
-    //     if (children[2]) {
-    //         func_param* arr = static_cast<func_param*>(children[2]->ptr.release());
-    //         arr->setType(type);
-    //         arr->setId(id);
-    //         res->set_node(funcparamPtr(arr));
-    //     } else {
-    //         func_param* base = new func_param(children[0]->location);
-    //         base->setId(id);
-    //         base->setType(type);
-    //         res->set_node(funcparamPtr(base));
-    //     }
-
-    //     return res;
-    // }),
-    // ruleAction(rule(FuncFParamTail, {LBK, RBK, FuncFParamTailTail}), [](std::vector<parseInfoPtr>& children) {
-        
-    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-    //     auto tail = static_cast<func_param*>(children[2]->ptr.release());
-    //     tail->addDim(nullptr);
-    //     res->set_node(funcparamPtr(tail));
-    //     return res;
-    // }),
-    // rule(FuncFParamTail, {}),
-    // ruleAction(rule(FuncFParamTailTail, {LBK, ConstExp, RBK, FuncFParamTailTail}), [](std::vector<parseInfoPtr>& children) {
-        
-    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-    //     auto tail = static_cast<func_param*>(children[3]->ptr.release());
-    //     expr *ptr = static_cast<expr*>(children[1]->ptr.release());
-    //     tail->addDim(expPtr(ptr));
-    //     res->set_node(nodePtr(tail));
-    //     return res;
-    // }),
-    // ruleAction(rule(FuncFParamTailTail, {}), [](std::vector<parseInfoPtr>&) {
-    //     parseInfoPtr res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1}); //loc not used
-    //     func_param *p = new func_param(std::pair<size_t, size_t>{-1, -1});
-    //     res->set_node(nodePtr(p));
-    //     return res;
-    // }),
     ruleAction(rule(FuncDef, {Type, Declarator, Block}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         auto funcDef = new func_def(children[0]->location);
@@ -686,10 +606,9 @@ const std::vector<ruleAction> ruleWithAction = {
                 pointer->elementType = nullptr;
                 arr->element_type = TypePtr(pointer);
             } else if(arr->element_type->kind == TypeKind::Pointer && 
-                    ((PointerType*)(arr->element_type.get()))->elementType == nullptr){
+                    ((PointerType*)(arr->element_type.get()))->elementType == nullptr) {
                 auto ptr = (PointerType*)(arr->element_type.get());
                 ptr->depth++;
-                while(1);
             } else {
                 std::cout << "Pointer Fault\n";
                 while(1);
@@ -704,7 +623,6 @@ const std::vector<ruleAction> ruleWithAction = {
                     ((PointerType*)(fun->retType.get()))->elementType == nullptr) {
                 auto ptr = (PointerType*)(fun->retType.get());
                 ptr->depth++;
-
             } else {
                 std::cout << "Pointer Fault\n";
                 while(1);
@@ -734,7 +652,9 @@ const std::vector<ruleAction> ruleWithAction = {
         return res;
     }),
 
-    ruleAction(rule(TypeSuffix, {LBK, ConstExp, RBK, TypeDeclIdxTail}), [](std::vector<parseInfoPtr>& children) {
+    rule(TypeSuffix, {TypeDeclIdxTail}),
+
+    ruleAction(rule(TypeDeclIdxTail, {LBK, ConstExp, RBK, TypeDeclIdxTail}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         ArrayType *type = dynamic_cast<ArrayType*>(children[3]->type);
         type->addDim(expPtr(dynamic_cast<expr*>(children[1]->ptr.release())));
@@ -815,7 +735,8 @@ const std::vector<ruleAction> ruleWithAction = {
                 PointerType *pointer = dynamic_cast<PointerType*>(func->retType.get());
                 pointer->elementType = result_type;
             } else {
-                throw std::runtime_error("rule funcparam->type declarator\n");
+                std::cout << "rule funcparam->type declarator\n";
+                exit(1);
             }
         } else if(children[1]->type->kind == TypeKind::Array) {
             struct Type *type = children[1]->type;
@@ -826,7 +747,8 @@ const std::vector<ruleAction> ruleWithAction = {
                 PointerType *pointer = dynamic_cast<PointerType*>(arr->element_type.get());
                 pointer->elementType = result_type;
             } else {
-                throw std::runtime_error("rule funcparam->type declarator\n");
+                std::cout << "rule funcparam->type declarator\n";
+                exit(1);
             }
         } else if(children[1]->type->kind == TypeKind::Pointer) {
             dynamic_cast<PointerType*>(children[1]->type)->elementType = result_type;
@@ -1118,6 +1040,7 @@ const std::vector<ruleAction> ruleWithAction = {
     rule(AddOp, {PLUS}),
     rule(AddOp, {MINUS}),
     rule(RelExp, {AddExp}),
+    ruleAction(rule(RelExp, {RelExp, RelOp, AddExp}), binaryFactory()),
     ruleAction(rule(EqExp, {EqExp, EqOp, RelExp}), binaryFactory()),
     rule(RelOp, {LT}),
     rule(RelOp, {GT}),
@@ -1804,7 +1727,8 @@ void visualizeAsTree(const parserTreePtr &node,
 LRTable importLRTableFromCSV(const std::string& filename) {
     std::ifstream csv(filename);
     if(!csv.is_open()) {
-        throw std::runtime_error("Failed to open CSV file");
+        std::cout << "Failed to open CSV file\n";
+        exit(1);
     }
     std::vector<symbolType> symbols;
     std::map<std::string, symbolType> nameToSym;
@@ -1825,7 +1749,8 @@ LRTable importLRTableFromCSV(const std::string& filename) {
     
     while (std::getline(ss, cell, ',')) {
         if (nameToSym.find(cell) == nameToSym.end()) {
-            throw std::runtime_error("Unknown symbol in CSV: " + cell);
+            std::cout << "Unknown symbol in CSV: " + cell +"\n";
+            exit(1);
         }
         symbols.push_back(nameToSym[cell]);
     }

@@ -91,7 +91,41 @@ std::string ArrayType::to_string() {
     return res;
 }
 
-void ArrayType::printUnevaludatedType(std::string prefix, std::string info_prefix) {
+Type *ArrayType::degrade()
+{
+    if(dims.size() > 1) {
+        PointerType *target = new PointerType();
+        ArrayType *array = new ArrayType();
+        for(int i = 0; i < dims.size() - 1; i++) {
+            array->dims.push_back(dims[i]);
+        }
+        PointerType *elem = nullptr;
+        if(element_type->kind != TypeKind::Pointer) {
+            PointerType *target = new PointerType();
+            target->elementType = element_type.get();
+            elem = target;
+        } else {
+            PointerType *p = dynamic_cast<PointerType*>(element_type.get());
+            p->depth++;
+            elem = p;
+        }
+        array->element_type = TypePtr(static_cast<Type*>(elem));
+        return array;
+    } else {
+        if(element_type->kind != TypeKind::Pointer) {
+            PointerType *target = new PointerType();
+            target->elementType = element_type.get();
+            return target;
+        } else {
+            PointerType *p = dynamic_cast<PointerType*>(element_type.get());
+            p->depth++;
+            return p;
+        }
+    }
+}
+
+void ArrayType::printUnevaludatedType(std::string prefix, std::string info_prefix)
+{
     std::cout << info_prefix << to_string() << "\n";
     for (size_t i = 0; i < pendingDims.size(); ++i) {
         expr *p = pendingDims[pendingDims.size() - i - 1].get();
@@ -134,7 +168,7 @@ void FuncType::setRetTypeAndReverse(TypePtr ptr) {
 }
 
 void FuncType::setConst() {
-    throw std::runtime_error("funcType can be set to const");
+    is_const = true;
 }
 
 void FuncType::setRetType(TypePtr ptr)
@@ -297,7 +331,8 @@ TypePtr TypeFactory::getTypeFromName(const std::string& type_name) {
             type = TypeFactory::getBool();
             break;
         default:
-            throw std::runtime_error("Unhandled type in mapper: " + type_name);
+            std::cout << "unknown type at getTypeFromName\n";
+            exit(1);
     }
     return type;
 }

@@ -7,13 +7,13 @@ const analyzeInfo HASERROR = analyzeInfo {
 
 void TypeChecker::TypeError(node *ptr, const std::string &str) {
     if(ptr->error_msg == "") {
-        ptr->error_msg = RED + std::string(" error: ") + RESET + str;
+        ptr->error_msg = color::red + std::string(" error: ") + color::reset + str;
         std::stringstream ss;
-        ss  << BOLD_BLACK
+        ss  << color::bold_black
             <<  ":"  
             <<  ptr->location.first << ":"
             <<  ptr->location.second << ":"
-            <<  RESET;
+            <<  color::reset;
         errorMessages.push_back(ss.str() + ptr->error_msg);
     }
 }
@@ -101,30 +101,141 @@ std::cout << "Entering class: " << node->name << "\n";
 // ========================
 // Expression Nodes
 // ========================
+void TypeChecker::analyzeAdd(binary_expr *node) {
+    auto info1 = node->left->dispatch(this);
+    auto info2 = node->right->dispatch(this);
+    if(info1.type == nullptr || info2.type == nullptr) {
+        std::cout << "binary_expr analyze fail, the fault is at:\n";
+        node->printAST("","");
+        exit(1);
+    }
+    if(info1.type->kind == TypeKind::Int && info2.type->kind == TypeKind::Int) {
+        node->inferred_type = TypeFactory::getInt().release();
+    } else if(info1.type->kind == TypeKind::Pointer && info2.type->kind == TypeKind::Int) {
+        node->inferred_type = TypeFactory::getInt().release();
+    } else if(info2.type->kind == TypeKind::Pointer && info1.type->kind == TypeKind::Int) {
+        auto ptr = std::move(node->left);
+        node->left = std::move(node->right);
+        node->right = std::move(ptr);
+        node->inferred_type = node->left->inferred_type;
+    } else if(info1.type->kind == TypeKind::Pointer && info2.type->kind == TypeKind::Pointer && node->op == "-") {
+        node->inferred_type = TypeFactory::getInt().release();
+    } 
+}
+
+void TypeChecker::analyzeMul(binary_expr *node) {
+    if(node->left->inferred_type->kind == TypeKind::Int && node->right->inferred_type->kind == TypeKind::Int) {
+        node->inferred_type = TypeFactory::getInt().release();
+    } 
+}
+
+void TypeChecker::analyzeBitAnd(binary_expr *node) {
+    if(node->left->inferred_type->kind == TypeKind::Int && node->right->inferred_type->kind == TypeKind::Int) {
+        node->inferred_type = TypeFactory::getInt().release();
+    } 
+}
+
+void TypeChecker::analyzeLogicAnd(binary_expr *node) {
+    if(node->left->inferred_type->kind == TypeKind::Int && node->right->inferred_type->kind == TypeKind::Int) {
+        node->inferred_type = TypeFactory::getInt().release();
+    }
+}
+
+void TypeChecker::analyzeCompare(binary_expr *node) {
+    if(node->left->inferred_type->kind == TypeKind::Int && node->right->inferred_type->kind == TypeKind::Int) {
+        node->inferred_type = TypeFactory::getInt().release();
+    }
+}
+
+void TypeChecker::analyzeEq(binary_expr *node) {
+    if(node->left->inferred_type->kind == TypeKind::Int && node->right->inferred_type->kind == TypeKind::Int) {
+        node->inferred_type = TypeFactory::getInt().release();
+    } 
+}
 
 analyzeInfo TypeChecker::analyze(binary_expr* node) {
     auto info1 = node->left->dispatch(this);
     auto info2 = node->right->dispatch(this);
-
-    if(info1.type->equals(TypeFactory::getInt().release()) &&
-                info2.type->equals(TypeFactory::getInt().release())) {
-        std::cout << "TypeCheckPass at (" << node->location.first << "," << node->location.second << ")" << std::endl;
-        node->inferred_type = TypeFactory::getInt().release();
-        return analyzeInfo{
-            .type = node->inferred_type,
-        };
+    if(info1.type == nullptr || info2.type == nullptr) {
+        std::cout << "binary_expr analyze fail, the fault is at:\n";
+        node->printAST("","");
+        exit(1);
     }
-    std::stringstream ss;
-    ss << "Operator '" << node->op << "' cannot apply on type " 
-       << info1.type->to_string() 
-       << " and " << info2.type->to_string() << "";
-    TypeError(node, ss.str());
-    node->inferred_type = HASERROR.type;
-    return HASERROR;
+    if(info1.type->kind == TypeKind::Array) {
+        ArrayType *array = dynamic_cast<ArrayType*>(info1.type);
+        Type *degrade_array = array->degrade();
+        type_cast *tc = new type_cast(std::move(node->left), degrade_array);
+        tc->inferred_type = degrade_array;
+        node->left = expPtr(tc);
+        if(array->dims.size() > 1) {
+            std::stringstream ss;
+            ss << "Operator '" << node->op << "' cannot apply on type " 
+            << degrade_array->to_string() 
+            << " and " << node->right->inferred_type->to_string() << "";
+            TypeError(node, ss.str());
+            node->inferred_type = HASERROR.type;
+        } else {
+            node->inferred_type = degrade_array;
+        }
+    }
+    if(info2.type->kind == TypeKind::Array) {
+        ArrayType *array = dynamic_cast<ArrayType*>(info2.type);
+        Type *degrade_array = array->degrade();
+        type_cast *tc = new type_cast(std::move(node->right), degrade_array);
+        tc->inferred_type = degrade_array;
+        node->right = expPtr(tc);
+        if(array->dims.size() > 1) {
+            std::stringstream ss;
+            ss << "Operator '" << node->op << "' cannot apply on type " 
+            << degrade_array->to_string() 
+            << " and " << node->right->inferred_type->to_string() << "";
+            TypeError(node, ss.str());
+            node->inferred_type = HASERROR.type;
+        } else {
+            node->inferred_type = degrade_array;
+        }
+    }
+    if(node->op == "+" || node->op == "-") {
+        analyzeAdd(node);
+    }
+    if(node->op == "*" || node->op == "/") {
+        analyzeMul(node);
+    }
+    if(node->op == "&" || node->op == "|") {
+        analyzeBitAnd(node);
+    }
+    if(node->op == "&&" || node->op == "||") {
+        analyzeLogicAnd(node);
+    }
+    if(node->op == ">" || node->op == "<") {
+        analyzeCompare(node);
+    }
+    if(node->op == "==" || node->op == "!=") {
+
+    }
+    if(node->op == "<=" || node->op == ">=") {
+
+    }
+    if(node->inferred_type == nullptr) {
+        node->inferred_type = HASERROR.type;
+        std::stringstream ss;
+        ss << "Operator '" << node->op << "' cannot apply on type " 
+        << info1.type->to_string() 
+        << " and " << info2.type->to_string() << "";
+        TypeError(node, ss.str());
+    }
+    return analyzeInfo{
+        .type = node->inferred_type
+    };
 }
 
 analyzeInfo TypeChecker::analyze(unary_expr* node) {
     auto info = node->operand->dispatch(this);
+    if(info.type == nullptr) {
+        std::cout << "unary_expr analyze fail, the fault is at:\n";
+        node->printAST("","");
+        exit(1);
+    }
     if(node->op == "*") {
         if(info.type->kind != TypeKind::Pointer) {
             TypeError(node, "Type '" + info.type->to_string() + "' is not a pointer type");
@@ -185,6 +296,11 @@ analyzeInfo TypeChecker::analyze(lval_expr* node) {
         size_t depth = 0;
         for(size_t i = 0; i < node->dims.size(); i++) {
             auto info = node->dims[i]->dispatch(this);
+            if(info.type == nullptr) {
+                std::cout << "lval analyze fail, the fault is at:\n";
+                node->printAST("","");
+                exit(1);
+            }
             if(!info.type->equals(TypeFactory::getInt().get())) {
                 TypeError(node, "Index is not integer");
                 node->inferred_type = HASERROR.type;
@@ -257,6 +373,11 @@ analyzeInfo TypeChecker::analyze(fun_call* node) {
     }
     for(size_t i = 0; i < node->args.size(); i++) {
         node->args[i]->dispatch(this);
+        if(node->args[i]->inferred_type == nullptr) {
+            std::cout << "fun_call analyze fail, the fault is at:\n";
+            node->printAST("","");
+            exit(1);
+        }
     }
     auto sym = symbolTable->getValue(node->func_name);
     if(sym.kind != FUNCTION || sym.type->kind != TypeKind::Function) {
@@ -313,6 +434,11 @@ analyzeInfo TypeChecker::analyze(expr_stmt* node) {
 
 analyzeInfo TypeChecker::analyze(if_else_stmt* node) {
     auto info1 = node->cond->dispatch(this);
+    if(info1.type == nullptr) {
+        std::cout << "if_else_stmt analyze fail, the fault is at:\n";
+        node->printAST("","");
+        exit(1);
+    }
     loopDepth++;
     if(!info1.type->equals(TypeFactory::getInt().get())) {
         std::stringstream ss;
@@ -327,6 +453,11 @@ analyzeInfo TypeChecker::analyze(if_else_stmt* node) {
 
 analyzeInfo TypeChecker::analyze(while_stmt* node) {
     auto info1 = node->cond->dispatch(this);
+    if(info1.type == nullptr) {
+        std::cout << "while stmt analyze fail, the fault is at:\n";
+        node->printAST("","");
+        exit(1);
+    }
     if(!info1.type->equals(TypeFactory::getInt().get())) {
         std::stringstream ss;
         ss << "The condition is of type " << info1.type->to_string() << ", which is not a numeric type";
@@ -366,6 +497,11 @@ analyzeInfo TypeChecker::analyze(return_stmt* node) {
         return analyzeInfo();
     }
     auto info = node->value->dispatch(this);
+    if(info.type == nullptr) {
+        std::cout << "return_stmt analyze fail, the fault is at:\n";
+        node->printAST("","");
+        exit(1);
+    }
     if(currentFuncDef->is_constructor) {
         TypeError(node, "The constructor shouldn't return any value");
     } else if(!currentFuncDef->type->retType->equals(info.type)) {
@@ -478,6 +614,11 @@ normalization(init_val *ptr, std::vector<size_t> dims, Type *elementType, TypeCh
          child->printAST("","");
         if(child->scalar) {
             child->scalar->dispatch(tc); //tc before use inferred type
+            if(child->scalar->inferred_type == nullptr) {
+                std::cout << "init analyze fail, the fault is at:\n";
+                ptr->printAST("","");
+                exit(1);
+            }
             if(elementType->equals(child->scalar->inferred_type)) {
                    
                 init_val *new_child = new init_val(std::pair<size_t,size_t>(0, 0));
@@ -530,7 +671,12 @@ normalization(init_val *ptr, std::vector<size_t> dims, Type *elementType, TypeCh
         init_val *new_child = new init_val(std::pair<size_t,size_t>(0, 0));
         int_literal *val = new int_literal(std::pair<size_t,size_t>(0, 0), 0);
         new_child->scalar = expPtr(static_cast<expr*>(val));
-        new_child->scalar->dispatch(tc);
+        auto info = new_child->scalar->dispatch(tc);
+        if(info.type == nullptr) {
+            std::cout << "init analyze fail, the fault is at:\n";
+            new_child->scalar->printAST("","");
+            exit(1);
+        }
         result->addChild(initValPtr(new_child));
     }
     return {result, SUCCESS};
@@ -546,6 +692,11 @@ void TypeChecker::analyzeInit(var_def* node) {
                 TypeError(node, ss.str());
             } else {
                 auto info = p->scalar->dispatch(this);
+                if(info.type == nullptr) {
+                    std::cout << "var_def analyze fail, the fault is at:\n";
+                    node->printAST("","");
+                    exit(1);
+                }
                 if(!info.type->equals(node->type.get())) {
                     std::stringstream ss;
                     ss << "type mismatch in initialization, "
@@ -594,7 +745,7 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
         return analyzeInfo();
     }
     if(node->id == "this") {
-        TypeError(node, "'this' cannot be explicitly declared");
+        TypeError(node, "'this' cannot be explicitly declared as assignable");
         return analyzeInfo();
     }
     if(node->type->equals(TypeFactory::getVoid().release())) {
@@ -604,7 +755,7 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
     node->type->evaluate(this);
     if(node->type->hasError) {
         std::stringstream ss;
-        ss  << "The compile-time constant within this type " 
+        ss  << "The compile-time constant within this type "
             << node->type->to_string() + " cannot be fully evaluated";
         TypeError(node, ss.str());
         return analyzeInfo();
@@ -613,6 +764,8 @@ analyzeInfo TypeChecker::analyze(var_def* node) {
     if(node->is_const) {
         node->type->setConst();
     }
+
+    if(node->type)
 
     symbolTable->insert(node->id, 
     Symbol{
@@ -628,10 +781,6 @@ analyzeInfo TypeChecker::analyze(var_decl* node) {
     for(size_t i = 0; i < node->defs.size(); i ++) {
         node->defs[i]->dispatch(this);
     }
-    return analyzeInfo();
-}
-
-analyzeInfo TypeChecker::analyze(func_param* node) {
     return analyzeInfo();
 }
 
@@ -657,6 +806,11 @@ analyzeInfo TypeChecker::analyze(init_val* node) {
 // In this function the visited node will either represent a field or method, indicating by the isFunc
 analyzeInfo TypeChecker::analyze(member_access *node) {
     auto info = node->exp->dispatch(this);
+    if(info.type == nullptr) {
+        std::cout << "member_access analyze fail, the fault is at:\n";
+        node->printAST("","");
+        exit(1);
+    }
     if(node->exp->inferred_type->kind != TypeKind::ClassVar) {
         TypeError(node, "The expression at the left of the dot should be an object, but its type is '" + node->exp->inferred_type->to_string() + "'");
         node->inferred_type = HASERROR.type;
@@ -692,7 +846,12 @@ analyzeInfo TypeChecker::analyze(member_access *node) {
                 TypeError(node, ss.str());
             }
             for(size_t i = 0; i < std::min(node->args.size(), type->argTypeList.size()); i++) {
-                node->args[i]->dispatch(this);
+                auto info1 = node->args[i]->dispatch(this);
+                if(info1.type == nullptr) {
+                    std::cout << "member_access analyze fail, the fault is at:\n";
+                    node->printAST("","");
+                    exit(1);
+                }
                 if(!type->argTypeList[i]->equals(node->args[i]->inferred_type)) {
                     std::stringstream ss;
                     ss  << "The " << i << "th argument of function '" << node->name 
@@ -725,6 +884,11 @@ analyzeInfo TypeChecker::analyze(member_access *node) {
 
 analyzeInfo TypeChecker::analyze(pointer_acc *node) {
     auto info = node->exp->dispatch(this);
+    if(info.type == nullptr) {
+        std::cout << "point_acc analyze fail, the fault is at:\n";
+        node->printAST("","");
+        exit(1);
+    }
     if(node->exp->inferred_type->kind != TypeKind::Pointer) {
         TypeError(node, "The expression at the left of the dot should be a pointer to an object, but its type is '" + node->exp->inferred_type->to_string() + "'");
         node->inferred_type = HASERROR.type;
@@ -732,7 +896,8 @@ analyzeInfo TypeChecker::analyze(pointer_acc *node) {
     }
     PointerType *pointer = dynamic_cast<PointerType*>(node->exp->inferred_type);
     if(pointer->elementType == nullptr) {
-        throw std::runtime_error("In analyze pointer_acc, pointer->elementtype is nullpointer");
+        std::cout << "In analyze pointer_acc, pointer->elementtype is nullpointer\n";
+        exit(1);
     }
     if(!(pointer->elementType->kind == TypeKind::ClassVar)) {
         TypeError(node, "The expression at the left of the dot should be a pointer to an object, but its type is '" + node->exp->inferred_type->to_string() + "'");
@@ -770,7 +935,12 @@ analyzeInfo TypeChecker::analyze(pointer_acc *node) {
                 TypeError(node, ss.str());
             }
             for(size_t i = 0; i < std::min(node->args.size(), type->argTypeList.size()); i++) {
-                node->args[i]->dispatch(this);
+                auto info2 = node->args[i]->dispatch(this);
+                if(info2.type == nullptr) {
+                    std::cout << "pointer_acc analyze fail, the fault is at:\n";
+                    node->printAST("","");
+                    exit(1);
+                }
                 if(!type->argTypeList[i]->equals(node->args[i]->inferred_type)) {
                     std::stringstream ss;
                     ss  << "The " << i << "th argument of function '" << node->name 
@@ -810,6 +980,11 @@ analyzeInfo TypeChecker::evaluate(ArrayType *node)
             // evaluate pending dims into constants
             expr *p = node->pendingDims[size - i - 1].get();
             auto info1 = p->dispatch(this);//typecheck before const_eval!
+            if(info1.type == nullptr) {
+                std::cout << "array_type analyze fail, the fault is at:\n";
+                node->printUnevaludatedType("","");
+                exit(1);
+            }
             if(!info1.type->equals(TypeFactory::getInt().get()) && !node->hasError) {
                 node->hasError = true;
                 std::stringstream ss;
@@ -903,6 +1078,10 @@ constInfo TypeChecker::const_eval(int_literal *node)
 
 void TypeChecker::dumpErrors(std::string path) {
     for(const auto &str : errorMessages) {
-        std::cout << BOLD_BLACK << path << RESET << str << std::endl;
+        std::cout << color::bold_black << path << color::reset << str << std::endl;
     }
+}
+
+bool TypeChecker::hasTypeError() {
+    return errorMessages.size() > 0;
 }

@@ -159,11 +159,11 @@ std::string token_serialize(const token& token) {
     };
 
     std::string type_str;
-    try {
+    if(type_names.find(token.type) != type_names.end()) {
         type_str = type_names.at(token.type);
-    } catch(std::out_of_range) {
-        std::cout << "token can't be serialized\n";
-        return {};
+    } else {
+        std::cout << "token not legal\n";
+        exit(1);
     }
     auto [line, col] = token.location;
     std::ostringstream oss;

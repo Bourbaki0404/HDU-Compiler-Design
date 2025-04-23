@@ -2,7 +2,6 @@
 
 #include "parser/astnodes/node.hpp"
 
-
 // Base node implementation
 node::node(std::pair<size_t, size_t> pair) : location(pair) {}
 
@@ -35,6 +34,11 @@ void program::printAST(std::string prefix, std::string info_prefix) {
 analyzeInfo program::dispatch(TypeChecker *ptr)
 {
     return ptr->analyze(this);
+}
+
+codeGenInfo program::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
 } 
 
 // Expression Nodes
@@ -52,7 +56,7 @@ unary_expr::unary_expr(std::pair<size_t, size_t> loc, std::string op, expPtr ope
     }
 
 std::string unary_expr::to_string() {
-    return "unary_expr <op " + op + "> " + (inferred_type ? MAGENTA + std::string("inferredType: ") + inferred_type->to_string() + RESET + " ": "");
+    return "unary_expr <op " + op + "> " + (inferred_type ? color::magenta + std::string("inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
 }
 
 void unary_expr::printAST(std::string prefix, std::string info_prefix) {
@@ -61,6 +65,11 @@ void unary_expr::printAST(std::string prefix, std::string info_prefix) {
 }
 
 analyzeInfo unary_expr::dispatch(TypeChecker *ptr)
+{
+    return ptr->analyze(this);
+}
+
+codeGenInfo unary_expr::dispatch(codeGen *ptr)
 {
     return ptr->analyze(this);
 }
@@ -78,7 +87,7 @@ binary_expr::binary_expr(std::pair<size_t, size_t> loc, std::string op, expPtr l
     }
 
 std::string binary_expr::to_string() {
-    return "binary_expr <op " + op + "> " + (inferred_type ? MAGENTA + std::string("inferredType: ") + inferred_type->to_string() + RESET + " ": "");
+    return "binary_expr <op " + op + "> " + (inferred_type ? color::magenta + std::string("inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
 }
 
 void binary_expr::printAST(std::string prefix, std::string info_prefix) {
@@ -88,6 +97,11 @@ void binary_expr::printAST(std::string prefix, std::string info_prefix) {
 }
 
 analyzeInfo binary_expr::dispatch(TypeChecker *ptr)
+{
+    return ptr->analyze(this);
+}
+
+codeGenInfo binary_expr::dispatch(codeGen *ptr)
 {
     return ptr->analyze(this);
 }
@@ -103,7 +117,8 @@ lval_expr::lval_expr() : expr({-1, -1}, nullptr) {
 }
 
 std::string lval_expr::to_string() {
-    return "LVal <id " + id + (inferred_type != nullptr ? ", type " + inferred_type->to_string() : "") + ">";
+    return "LVal <id " + id + (inferred_type != nullptr ? ", type " + inferred_type->to_string() : "") + "> " + 
+    (inferred_type ? color::magenta + std::string("inferredType: ") + inferred_type->to_string() + color::reset + " ": "");;
 }
 
 void lval_expr::printAST(std::string prefix, std::string info_prefix) {
@@ -135,6 +150,11 @@ analyzeInfo lval_expr::dispatch(TypeChecker *ptr)
     return ptr->analyze(this);
 }
 
+codeGenInfo lval_expr::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 constInfo lval_expr::const_eval(TypeChecker *ptr)
 {
     return ptr->const_eval(this);
@@ -157,6 +177,11 @@ void expr_stmt::printAST(std::string prefix, std::string info_prefix) {
 }
 
 analyzeInfo expr_stmt::dispatch(TypeChecker *ptr)
+{
+    return ptr->analyze(this);
+}
+
+codeGenInfo expr_stmt::dispatch(codeGen *ptr)
 {
     return ptr->analyze(this);
 }
@@ -184,6 +209,11 @@ analyzeInfo if_else_stmt::dispatch(TypeChecker *ptr)
     return ptr->analyze(this);
 }
 
+codeGenInfo if_else_stmt::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 while_stmt::while_stmt(std::pair<size_t, size_t> loc, expPtr cond, stmtPtr body)
     : stmt(loc), cond(std::move(cond)), body(std::move(body)) {}
 
@@ -198,6 +228,11 @@ void while_stmt::printAST(std::string prefix, std::string info_prefix) {
 }
 
 analyzeInfo while_stmt::dispatch(TypeChecker *ptr)
+{
+    return ptr->analyze(this);
+}
+
+codeGenInfo while_stmt::dispatch(codeGen *ptr)
 {
     return ptr->analyze(this);
 }
@@ -218,6 +253,11 @@ analyzeInfo break_stmt::dispatch(TypeChecker *ptr)
     return ptr->analyze(this);
 }
 
+codeGenInfo break_stmt::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 // Continue Statement
 continue_stmt::continue_stmt(std::pair<size_t, size_t> loc) : stmt(loc) {}
 
@@ -230,6 +270,11 @@ void continue_stmt::printAST(std::string prefix, std::string info_prefix) {
 }
 
 analyzeInfo continue_stmt::dispatch(TypeChecker *ptr)
+{
+    return ptr->analyze(this);
+}
+
+codeGenInfo continue_stmt::dispatch(codeGen *ptr)
 {
     return ptr->analyze(this);
 }
@@ -252,6 +297,11 @@ void return_stmt::printAST(std::string prefix, std::string info_prefix) {
 }
 
 analyzeInfo return_stmt::dispatch(TypeChecker *ptr)
+{
+    return ptr->analyze(this);
+}
+
+codeGenInfo return_stmt::dispatch(codeGen *ptr)
 {
     return ptr->analyze(this);
 }
@@ -287,6 +337,11 @@ analyzeInfo block_stmt::dispatch(TypeChecker *ptr)
     return ptr->analyze(this);
 }
 
+codeGenInfo block_stmt::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 // ==================== Expression Nodes ====================
 
 // Literal Base Class
@@ -303,10 +358,15 @@ int_literal::int_literal(std::pair<size_t, size_t> loc, int val)
     }
 
 std::string int_literal::to_string() {
-    return "int_literal <value " + std::to_string(value) + "> " + (inferred_type ? MAGENTA + std::string("inferredType: ") + inferred_type->to_string() + RESET + " ": "");
+    return "int_literal <value " + std::to_string(value) + "> " + (inferred_type ? color::magenta + std::string("inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
 }
 
 analyzeInfo int_literal::dispatch(TypeChecker *ptr)
+{
+    return ptr->analyze(this);
+}
+
+codeGenInfo int_literal::dispatch(codeGen *ptr)
 {
     return ptr->analyze(this);
 }
@@ -334,7 +394,7 @@ std::string fun_call::to_string() {
         result += "argnum " + std::to_string(i + 1);
     }
     result += ")> ";
-    result += (inferred_type ? MAGENTA + std::string("inferredType: ") + inferred_type->to_string() + RESET + " ": "");
+    result += (inferred_type ? color::magenta + std::string("inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
     return result;
 }
 void fun_call::setLoc(std::pair<size_t, size_t> loc) {
@@ -357,57 +417,17 @@ analyzeInfo fun_call::dispatch(TypeChecker *ptr)
     return ptr->analyze(this);
 }
 
+codeGenInfo fun_call::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 constInfo fun_call::const_eval(TypeChecker *ptr)
 {
     return ptr->const_eval(this);
 }  
 // ==================== Function and Variable Nodes ====================
 
-// Function Parameter
-func_param::func_param(std::pair<size_t, size_t> loc)
-    : node(loc), type(nullptr) {}
-
-std::string func_param::to_string() {
-    return "fun_param <id " + id + ", type " + (type ? type->to_string() : "") + ">";
-}
-
-void func_param::setType(const std::string &type_name) {
-    if(this->type == nullptr) {
-        this->type = TypeFactory::getTypeFromName(type_name);
-    } else if(this->type->kind == TypeKind::Array) {
-        ArrayType* ptr = static_cast<ArrayType*>(this->type.get());
-        ptr->setBaseTypeAndReverse(TypeFactory::getTypeFromName(type_name));
-    }
-}
-
-void func_param::evaluateType() {
-    if (type) type->evaluate(nullptr);
-}
-
-void func_param::setId(const std::string& id) {
-    this->id = id;
-}
-
-void func_param::addDim(expPtr p) {
-    if(type == nullptr) {
-        type = TypeFactory::getArray();
-    }
-    ArrayType* ptr = static_cast<ArrayType*>(type.get());
-    ptr->addDim(std::move(p));
-}
-
-void func_param::printAST(std::string prefix, std::string info_prefix) {
-    std::cout << info_prefix << to_string() << "\n";
-    if(type && type->kind == TypeKind::Array) {
-        ArrayType *p = static_cast<ArrayType*>(type.get());
-        p->printUnevaludatedType(prefix + "    ", prefix + "└── ");
-    }
-}
-
-analyzeInfo func_param::dispatch(TypeChecker *ptr)
-{
-    return ptr->analyze(this);
-}
 
 // Function Definition
 func_def::func_def(std::pair<size_t, size_t> loc) : node(loc) {
@@ -469,6 +489,11 @@ analyzeInfo func_def::dispatch(TypeChecker *ptr)
     return info;
 }
 
+codeGenInfo func_def::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 void func_def::setCtor() {
     is_constructor = true;
 }
@@ -519,6 +544,11 @@ analyzeInfo var_def::dispatch(TypeChecker *ptr)
     return info;
 }
 
+codeGenInfo var_def::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 // Variable Declaration
 var_decl::var_decl(std::pair<size_t, size_t> loc) : node(loc) {
     kind = ASTKind::Var_Decl;
@@ -561,12 +591,22 @@ analyzeInfo var_decl::dispatch(TypeChecker *ptr)
     return ptr->analyze(this);
 }
 
+codeGenInfo var_decl::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 void var_def::finalizeType(std::string type_name) {
     if(this->type == nullptr) {
         this->type = TypeFactory::getTypeFromName(type_name);
     } else if(this->type->kind == TypeKind::Array) {
         ArrayType* ptr = dynamic_cast<ArrayType*>(this->type.get());
-        ptr->setBaseTypeAndReverse(TypeFactory::getTypeFromName(type_name));
+        if(!ptr->element_type) {
+            ptr->element_type = TypeFactory::getTypeFromName(type_name);
+        } else if(ptr->element_type->kind == TypeKind::Pointer) {
+            PointerType *pointer = dynamic_cast<PointerType*>(ptr->element_type.get());
+            pointer->elementType = TypeFactory::getTypeFromName(type_name).release();
+        }
     } else if(this->type->kind == TypeKind::Pointer) {
         PointerType* ptr = dynamic_cast<PointerType*>(this->type.get());
         ptr->elementType = TypeFactory::getTypeFromName(type_name).release();
@@ -643,6 +683,11 @@ analyzeInfo init_val::dispatch(TypeChecker *ptr)
     return ptr->analyze(this);
 }
 
+codeGenInfo init_val::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 class_def::class_def(std::pair<size_t, size_t> loc)
 : node(loc) {
     kind = ASTKind::Class_Def;
@@ -683,6 +728,11 @@ analyzeInfo class_def::dispatch(TypeChecker *ptr) {
     return ptr->analyze(this);
 }
 
+codeGenInfo class_def::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 member_access::member_access(std::pair<size_t, size_t> loc, expPtr exp, const std::string &name)
 : expr(loc, nullptr) {
     this->exp = std::move(exp);
@@ -710,6 +760,11 @@ void member_access::printAST(std::string prefix, std::string info_prefix) {
 }
 
 analyzeInfo member_access::dispatch(TypeChecker *ptr) {
+    return ptr->analyze(this);
+}
+
+codeGenInfo member_access::dispatch(codeGen *ptr)
+{
     return ptr->analyze(this);
 }
 
@@ -754,6 +809,11 @@ analyzeInfo pointer_acc::dispatch(TypeChecker *ptr) {
     return ptr->analyze(this);
 }
 
+codeGenInfo pointer_acc::dispatch(codeGen *ptr)
+{
+    return ptr->analyze(this);
+}
+
 // Constant expression evaluation (if applicable)
 constInfo pointer_acc::const_eval(TypeChecker *ptr) {
     return constInfo{
@@ -761,4 +821,46 @@ constInfo pointer_acc::const_eval(TypeChecker *ptr) {
         .value = nullptr,
         .type = nullptr
     };
+}
+
+type_cast::type_cast(std::pair<size_t, size_t> loc, expPtr exp, Type *target)
+: expr(loc, nullptr)
+{
+    this->exp = std::move(exp);
+    this->target = target;
+    isImplicit = false;
+}
+
+type_cast::type_cast(expPtr exp, Type *target)
+: expr({0,0}, nullptr){
+    this->exp = std::move(exp);
+    this->target = target;
+    isImplicit = true;
+}
+
+std::string type_cast::to_string()
+{
+    return "type_cast <target " + (target ? target->to_string() : "") + ">" + 
+    (inferred_type ? color::magenta + std::string(" inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
+}
+
+void type_cast::printAST(std::string prefix, std::string info_prefix)
+{
+    std::cout << info_prefix << to_string() << (!isImplicit ? locToString(location, error_msg) : " " + error_msg + "\n");
+    exp->printAST(prefix + "    ", prefix + "└── ");
+}
+
+analyzeInfo type_cast::dispatch(TypeChecker *ptr)
+{
+    return analyzeInfo();
+}
+
+codeGenInfo type_cast::dispatch(codeGen *ptr)
+{
+    return codeGenInfo();
+}
+
+constInfo type_cast::const_eval(TypeChecker *ptr)
+{
+    return constInfo();
 }

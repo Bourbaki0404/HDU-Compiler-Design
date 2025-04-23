@@ -10,7 +10,6 @@ struct expr;
 struct stmt;
 struct lval_expr;
 struct block_stmt;
-struct func_param;
 struct func_def;
 struct init_val;
 struct class_def;
@@ -36,12 +35,12 @@ enum ASTKind {
     Return_Stmt,
     Assign_Stmt,
     Fun_Call,
-    Func_Param,
     Func_Def,
     Var_Def,
     Var_Decl,
     Init_Val,
-    Class_Def
+    Class_Def,
+    Type_Cast
 };
 
 
@@ -60,12 +59,12 @@ using expPtr = std::unique_ptr<expr>;
 using lvalPtr = std::unique_ptr<lval_expr>;
 using stmtPtr = std::unique_ptr<stmt>;
 using blockPtr = std::unique_ptr<block_stmt>;
-using funcparamPtr = std::unique_ptr<func_param>;
 using initValPtr = std::unique_ptr<init_val>;
 using classPtr = std::unique_ptr<class_def>;
 
 #include "types/types.hpp"
 #include "types/TypeChecker.hpp"
+#include "codeGen/codeGen.hpp"
 
 std::string locToString(std::pair<size_t, size_t> location, std::string tail);
 
@@ -75,6 +74,7 @@ struct node {
         virtual std::string to_string() = 0;
         virtual void printAST(std::string prefix, std::string info_prefix) = 0;
         virtual analyzeInfo dispatch(TypeChecker *ptr) = 0;
+        virtual codeGenInfo dispatch(codeGen *ptr) = 0;
     public:
         ASTKind kind = Node;
         std::pair<size_t, size_t> location;
@@ -87,6 +87,7 @@ struct program : public node{
         std::string to_string() override;
         void printAST(std::string prefix, std::string info_prefix) override;
         analyzeInfo dispatch(TypeChecker *ptr) ;
+        codeGenInfo dispatch(codeGen *ptr);
     public:
         std::vector<node*> children;
 };
@@ -106,6 +107,7 @@ struct unary_expr : public expr {
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
     constInfo const_eval(TypeChecker *ptr) ;
     std::string op;
     expPtr operand;
@@ -117,6 +119,7 @@ struct binary_expr : public expr {
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
     constInfo const_eval(TypeChecker *ptr) ;
     std::string op;
     expPtr left;
@@ -131,6 +134,7 @@ struct lval_expr : public expr {
     void addDim(expPtr ptr);
     void setLoc(std::pair<size_t, size_t> loc);
     analyzeInfo dispatch(TypeChecker *ptr) override;
+    codeGenInfo dispatch(codeGen *ptr);
     constInfo const_eval(TypeChecker *ptr) ;
     std::string id;
     std::vector<expPtr> dims;
@@ -146,6 +150,7 @@ struct expr_stmt : public stmt {
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
     expPtr ptr;
 };
 
@@ -155,6 +160,7 @@ struct if_else_stmt : public stmt {
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
     const ASTKind kind = IF_ELSE_Stmt;
     expPtr cond;
     stmtPtr if_branch;
@@ -167,6 +173,7 @@ struct while_stmt : public stmt {
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
     expPtr cond;
     stmtPtr body;
 };
@@ -178,6 +185,7 @@ public:
     std::string to_string() override ;
     void printAST(std::string prefix, std::string info_prefix) override ;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
 };
 
 struct continue_stmt : public stmt {
@@ -186,6 +194,7 @@ public:
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
 };
 
 struct return_stmt : public stmt {
@@ -194,6 +203,7 @@ public:
     std::string to_string() override ;
     void printAST(std::string prefix, std::string info_prefix) override ;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
 public:
     expPtr value;
 };
@@ -205,6 +215,7 @@ struct block_stmt : public stmt {
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ; 
+    codeGenInfo dispatch(codeGen *ptr);
     std::vector<nodePtr> items;
 };
 
@@ -225,6 +236,7 @@ struct int_literal : public literal {
         int_literal(std::pair<size_t, size_t> loc, int val);     
         std::string to_string() override ;
         analyzeInfo dispatch(TypeChecker *ptr) ;
+        codeGenInfo dispatch(codeGen *ptr);
         constInfo const_eval(TypeChecker *ptr) ;
     public:
         const ASTKind kind = Int_Literal;
@@ -245,26 +257,12 @@ public:
     void setLoc(std::pair<size_t, size_t> loc) ;
     void printAST(std::string prefix, std::string info_prefix) override ;
     analyzeInfo dispatch(TypeChecker *ptr) override;
+    codeGenInfo dispatch(codeGen *ptr);
     constInfo const_eval(TypeChecker *ptr) ;
 public:
     const ASTKind kind = Fun_Call;
     std::string func_name;
     std::vector<expPtr> args;
-};
-
-
-struct func_param : public node, public typeEvaluator {
-    func_param(std::pair<size_t, size_t> loc);
-    std::string to_string() override ;
-    void setType(const std::string &type) ;
-    void evaluateType();
-    void setId(const std::string& id) ;
-    void addDim(expPtr p) ;
-    void printAST(std::string prefix, std::string info_prefix) override ;
-    analyzeInfo dispatch(TypeChecker *ptr) ;
-    const ASTKind kind = Func_Param;
-    TypePtr type;
-    std::string id;
 };
 
 
@@ -275,6 +273,7 @@ struct func_def : public node {
     void printArgList(std::string prefix, std::string info_prefix);
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
     void setCtor();
     FuncType *type; //will be evaluated during type checking
     std::string name;
@@ -290,6 +289,7 @@ struct var_def : public node {
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
     void finalizeType(std::string type_name);
     std::string id;
     TypePtr type;
@@ -308,6 +308,7 @@ struct var_decl : public node {
     std::string to_string() override ;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
     bool is_const = false;
     std::string typeName;
     std::vector<vardefPtr> defs;
@@ -326,6 +327,7 @@ struct init_val : node {
     void setLoc(std::pair<size_t, size_t>);
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
 public:
     ASTKind kind = Init_Val;
     bool is_const = false;
@@ -343,6 +345,7 @@ public:
     void reverseChildren() ;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
 public:
     std::string name;
     std::vector<nodePtr> children;
@@ -355,6 +358,7 @@ struct member_access : expr {
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
     constInfo const_eval(TypeChecker *ptr);
     std::string name;
     expPtr exp = nullptr;
@@ -367,11 +371,25 @@ struct pointer_acc : expr {
     std::string to_string() override;
     void printAST(std::string prefix, std::string info_prefix) override;
     analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
     constInfo const_eval(TypeChecker *ptr);
     std::string name;
     expPtr exp = nullptr;
     bool isFunc = false;
     std::vector<expPtr> args;
+};
+
+struct type_cast : expr {
+    type_cast(std::pair<size_t, size_t> loc, expPtr exp, struct Type *target);
+    type_cast(expPtr exp, struct Type *target);
+    std::string to_string() override;
+    void printAST(std::string prefix, std::string info_prefix) override;
+    analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
+    constInfo const_eval(TypeChecker *ptr);
+    struct Type* target;
+    expPtr exp = nullptr;
+    bool isImplicit = true;
 };
 
 #endif

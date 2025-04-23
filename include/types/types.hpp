@@ -11,7 +11,6 @@ struct expr;
 struct stmt;
 struct lval_expr;
 struct block_stmt;
-struct func_param;
 struct func_def;
 struct init_val;
 using progPtr = std::unique_ptr<program>;
@@ -20,7 +19,6 @@ using expPtr = std::unique_ptr<expr>;
 using lvalPtr = std::unique_ptr<lval_expr>;
 using stmtPtr = std::unique_ptr<stmt>;
 using blockPtr = std::unique_ptr<block_stmt>;
-using funcparamPtr = std::unique_ptr<func_param>;
 using initValPtr = std::unique_ptr<init_val>;
 
 enum TypeKind {
@@ -85,6 +83,7 @@ struct ArrayType : public Type {
     // evaluate all pending indexes into integers
     void evaluate(TypeChecker *ptr);
     std::string to_string() override;
+    Type *degrade();
     void printUnevaludatedType(std::string prefix, std::string info_prefix);
     bool equals(Type* other) override;
     void setConst();
