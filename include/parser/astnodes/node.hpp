@@ -126,6 +126,28 @@ struct binary_expr : public expr {
     expPtr right;
 };
 
+struct subscript_expr : public expr {
+    subscript_expr(std::pair<size_t, size_t> loc, expPtr list, expPtr sub);
+    std::string to_string() override;
+    void printAST(std::string prefix, std::string info_prefix) override;
+    analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
+    constInfo const_eval(TypeChecker *ptr) ;
+    struct Type *base_type = nullptr;
+    expPtr list = nullptr;
+    expPtr sub = nullptr;
+};
+
+struct identifier : public expr {
+    identifier(std::pair<size_t, size_t> loc, std::string name);
+    std::string to_string() override;
+    void printAST(std::string prefix, std::string info_prefix) override;
+    analyzeInfo dispatch(TypeChecker *ptr) ;
+    codeGenInfo dispatch(codeGen *ptr);
+    constInfo const_eval(TypeChecker *ptr) ;
+    std::string name;
+};
+
 struct lval_expr : public expr {
     lval_expr();
     std::string to_string() override;
@@ -138,6 +160,7 @@ struct lval_expr : public expr {
     constInfo const_eval(TypeChecker *ptr) ;
     std::string id;
     std::vector<expPtr> dims;
+    struct Type *id_type = nullptr;
 };
 
 
@@ -292,7 +315,7 @@ struct var_def : public node {
     codeGenInfo dispatch(codeGen *ptr);
     void finalizeType(std::string type_name);
     std::string id;
-    TypePtr type;
+    struct Type *type;
     nodePtr init_val;
     bool is_const = false;
 };

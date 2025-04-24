@@ -18,6 +18,7 @@ LDFLAGS = \
   $(shell $(LLVM_CONFIG) --system-libs)
 
 
+TEST_INPUT = ./test_input.cpp
 
 LEXER_DIR = ./lexer
 PARSER_DIR = ./parser
@@ -91,12 +92,16 @@ $(BUILD_DIR)/symbolTable/%.o: $(SYMTABLE_DIR)/%.cpp
 
 # Test target
 test: compiler
-	$(BUILD_DIR)/compiler test_input.cpp
+	$(BUILD_DIR)/compiler $(TEST_INPUT)
 	
 
 printIR: out.ll
 	echo $@ Below:
 	cat $<
+
+Play:
+	$(CXX) -S -emit-llvm $(TEST_INPUT) -o ./test_input.ll
+	cat ./test_input.ll
 
 # Clean target
 clean:

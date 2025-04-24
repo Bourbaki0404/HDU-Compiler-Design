@@ -1,30 +1,41 @@
 // void f(int p){return;}
+// #include <stdio.h>
 
-class a {
-    int foo(int a, int b) {
-        a + b;
-        return a;
-    }
-    a(int a, int b){
-        1 + 2;
-    }
-};
+// class a {
+//     int foo(int a, int b) {
+//         a + b;
+//         return a;
+//     }
+//     a(int o, int b) {
+//     }
+//     int o, b;
+// };
 
-int *foo(int *a[1][2], int ****b) {
-    int *k = b[1][2][3];
-    return a[1][1];
+// class b : public a {
+// public:
+//     b()
+//     :a(1,2){}
+//     int foo(int a, int b) {
+//         return a + b;
+//     }
+// };
+
+// int *foo(int *a[1][2], int ****b) {
+//     int *k = b[1][2][3];
+//     return a[1][1];
+// }
+
+// int foo1(int (*a)[2][3]) {
+//     int c[2][3];
+//     a = &c;
+
+//     return 1;
+// }
+
+int *foo(int a1[][2]) {
+    return 1 + a1[1];
 }
-
-int foo1() {
-    int x = 2;
-    return 1;
-}
-
-
 
 int main() {
-    int *p, *q;
-    int a[2];
-    int x = p < a;
-    return 1;
+    return 2;
 }

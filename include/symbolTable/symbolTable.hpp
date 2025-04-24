@@ -36,6 +36,10 @@ public:
     // return true if the symbol exists at current scope 
     bool isInCurrentScope(const std::string& symbol);
 
+    bool isInGlobal(const std::string& symbol);
+
+    Symbol getFromGlobal(const std::string& symbol);
+
     // get the item of the table
     Symbol getValue(const std::string& symbol);
     void beginScope();

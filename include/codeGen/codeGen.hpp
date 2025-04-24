@@ -2,11 +2,11 @@
 #define __CODE_GEN_H
 
 #include "common/common.hpp"
+
 #include "llvm-14/llvm/IR/Module.h"
 #include "llvm-14/llvm/IR/LLVMContext.h"
 #include "llvm-14/llvm/IR/IRBuilder.h"
 #include "llvm-14/llvm/IR/Verifier.h"
-
 
 struct node;
 struct typeEvaluator;
@@ -45,8 +45,10 @@ struct ClassType;
 struct SymbolTable;
 struct Symbol;
 
-struct codeGenInfo {
+struct environment;
 
+struct codeGenInfo {
+    llvm::Value *value;
 };
 
 struct codeGen {
@@ -97,17 +99,42 @@ private:
         llvm::raw_fd_ostream outLL(filename, error_code);
         module->print(outLL, nullptr);
     }
+    codeGenInfo analyzeAdd(binary_expr *node);
+    codeGenInfo analyzeMul(binary_expr *node);
+    codeGenInfo analyzeCompare(binary_expr *node);
+    codeGenInfo analyzeEq(binary_expr *node);
+    codeGenInfo analyzeGt(binary_expr *node);
+
+    llvm::Type *to_llvm_type(Type *ptr);
 
     std::unique_ptr<llvm::LLVMContext> ctx;
     std::unique_ptr<llvm::IRBuilder<>> builder;
+    std::unique_ptr<llvm::IRBuilder<>> var_builder;
     std::unique_ptr<llvm::Module> module;
 
     llvm::Function *currentFn;
-    
     std::string outFileName;
+
+    environment *cur;
+    environment *global;
 };
 
+struct env_info {
+    llvm::Value *value;
+};
 
+struct environment {
+    environment(struct environment *parent);
+    environment();
+    struct environment *parent;
+    std::map<std::string, env_info> mapping;
 
+    void insert(std::string name, env_info info);
+    env_info lookup(std::string name);
+    bool isExist(std::string name);
+    bool isInCurEnv(std::string name);
+};
+
+using envPtr = std::shared_ptr<environment>;
 
 #endif

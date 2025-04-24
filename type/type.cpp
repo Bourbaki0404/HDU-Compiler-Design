@@ -1,6 +1,5 @@
 #include "common/common.hpp"
 #include "parser/astnodes/node.hpp"
-#include "types/types.hpp"
 
 
 // Type
@@ -64,7 +63,7 @@ void ArrayType::setConst() {
     element_type->setConst();
 }
 
-void ArrayType::setBaseTypeAndReverse(TypePtr ptr) {
+void ArrayType::setBaseTypeAndReverse(Type *ptr) {
     element_type = std::move(ptr);
     std::reverse(dims.begin(), dims.end());
 }
@@ -94,30 +93,21 @@ std::string ArrayType::to_string() {
 Type *ArrayType::degrade()
 {
     if(dims.size() > 1) {
-        PointerType *target = new PointerType();
+        PointerType *result = new PointerType();
         ArrayType *array = new ArrayType();
-        for(int i = 0; i < dims.size() - 1; i++) {
+        for(int i = 1; i < dims.size(); i++) {
             array->dims.push_back(dims[i]);
         }
-        PointerType *elem = nullptr;
-        if(element_type->kind != TypeKind::Pointer) {
-            PointerType *target = new PointerType();
-            target->elementType = element_type.get();
-            elem = target;
-        } else {
-            PointerType *p = dynamic_cast<PointerType*>(element_type.get());
-            p->depth++;
-            elem = p;
-        }
-        array->element_type = TypePtr(static_cast<Type*>(elem));
-        return array;
+        array->element_type = this->element_type;
+        result->elementType = array;
+        return result;
     } else {
         if(element_type->kind != TypeKind::Pointer) {
             PointerType *target = new PointerType();
-            target->elementType = element_type.get();
+            target->elementType = element_type;
             return target;
         } else {
-            PointerType *p = dynamic_cast<PointerType*>(element_type.get());
+            PointerType *p = dynamic_cast<PointerType*>(element_type);
             p->depth++;
             return p;
         }
@@ -149,7 +139,7 @@ bool ArrayType::equals(Type* other) {
     if (other == nullptr) return false;
     if (other->kind != TypeKind::Array) return false;
     ArrayType* ptr = static_cast<ArrayType*>(other);
-    if (!element_type->equals(ptr->element_type.get())) return false;
+    if (!element_type->equals(ptr->element_type)) return false;
     if (dims.size() != ptr->dims.size()) return false;
     for (size_t i = 0; i < dims.size(); i++) {
         if (dims[i] != ptr->dims[i]) return false;
@@ -162,7 +152,7 @@ FuncType::FuncType()
     retType = nullptr;
 }
 
-void FuncType::setRetTypeAndReverse(TypePtr ptr) {
+void FuncType::setRetTypeAndReverse(Type *ptr) {
     this->retType = std::move(ptr);
     std::reverse(argTypeList.begin(), argTypeList.end());
 }
@@ -171,11 +161,11 @@ void FuncType::setConst() {
     is_const = true;
 }
 
-void FuncType::setRetType(TypePtr ptr)
+void FuncType::setRetType(Type *ptr)
 {
     this->retType = std::move(ptr);
 }
-void FuncType::addArgType(TypePtr argType)
+void FuncType::addArgType(Type *argType)
 {
     this->argTypeList.push_back(std::move(argType));
 }
@@ -184,9 +174,9 @@ bool FuncType::equals(Type *other) {
     if(other == nullptr) return false;
     if(other->kind != TypeKind::Function) return false;
     FuncType *p = static_cast<FuncType*>(other);
-    if(!p->retType->equals(this->retType.get())) return false;
+    if(!p->retType->equals(this->retType)) return false;
     for(size_t i = 0; i < argTypeList.size(); i++) {
-        if(!p->argTypeList[i]->equals(p->argTypeList[i].get()))
+        if(!p->argTypeList[i]->equals(p->argTypeList[i]))
             return false;
     }
     return true;
@@ -229,7 +219,22 @@ void PointerType::setConst() {
 }
 
 std::string PointerType::to_string() {
-    return std::string(depth, '*') + (elementType ? elementType->to_string() : "");
+    if(elementType == nullptr) return std::string(depth, '*');
+    if(elementType->kind == TypeKind::Array) {
+        ArrayType *arr = dynamic_cast<ArrayType*>(elementType);
+        std::stringstream ss;
+        ss  << arr->element_type->to_string()
+            << "(*)";
+        for(auto dim : arr->dims) {
+            ss  <<  "[" << dim << "]";
+        }
+        return ss.str();
+    } else if(elementType->kind == TypeKind::Pointer) { // prohibit pointer from pointing to another pointer
+        std::cout << "illegal array type\n";
+        exit(1);
+    } else {
+        return elementType->to_string() + std::string(depth, '*');
+    }
 }
 
 void PointerType::evaluate(TypeChecker *ptr) {
@@ -298,8 +303,9 @@ void ClassVarType::setConst() {
     is_const = true;
 }
 
+
 // TypeFactory
-TypePtr TypeFactory::getTypeFromName(const std::string& type_name) {
+Type *TypeFactory::getTypeFromName(const std::string& type_name) {
     static const std::unordered_map<std::string, TypeKind> type_map = {
         {"void", TypeKind::Void},
         {"int", TypeKind::Int},
@@ -310,10 +316,10 @@ TypePtr TypeFactory::getTypeFromName(const std::string& type_name) {
 
     auto it = type_map.find(type_name);
     if (it == type_map.end()) { // classVarType
-        return TypePtr(static_cast<Type*>(new ClassVarType(type_name)));
+        return static_cast<Type*>(new ClassVarType(type_name));
     }
 
-    TypePtr type;
+    Type *type;
     switch (it->second) {
         case TypeKind::Void: 
             type = TypeFactory::getVoid();
@@ -337,30 +343,74 @@ TypePtr TypeFactory::getTypeFromName(const std::string& type_name) {
     return type;
 }
 
-TypePtr TypeFactory::getVoid() { 
+Type *TypeFactory::getVoid() { 
     return makePrimitive(TypeKind::Void, 0); 
 }
 
-TypePtr TypeFactory::getInt() { 
+Type *TypeFactory::getInt() { 
     return makePrimitive(TypeKind::Int, 4); 
 }
 
-TypePtr TypeFactory::getFloat() { 
+Type *TypeFactory::getFloat() { 
     return makePrimitive(TypeKind::Float, 4); 
 }
 
-TypePtr TypeFactory::getChar() { 
+Type *TypeFactory::getChar() { 
     return makePrimitive(TypeKind::Char, 1); 
 }
 
-TypePtr TypeFactory::getBool() { 
+Type *TypeFactory::getBool() { 
     return makePrimitive(TypeKind::Bool, 1); 
 }
 
-TypePtr TypeFactory::getArray() {
-    return std::unique_ptr<ArrayType>(new ArrayType());
+Type *TypeFactory::getArray() {
+    typePool.push_back(new ArrayType());
+    return typePool.back();
 }
 
-TypePtr TypeFactory::makePrimitive(TypeKind kind, size_t size) {
-    return TypePtr(new PrimitiveType(kind, size));
+ClassVarType *TypeFactory::getClassVar(std::string classname) {
+    typePool.push_back(new ClassVarType(classname));
+    return dynamic_cast<ClassVarType*>(typePool.back());
 }
+
+PointerType *TypeFactory::getPointer() {
+    typePool.push_back(new PointerType());
+    return dynamic_cast<PointerType*>(typePool.back());
+}
+
+PointerType *TypeFactory::getPointerTo(struct Type* ptr) {
+    PointerType *p = new PointerType();
+    if(ptr->kind == TypeKind::Pointer) {
+        PointerType *pointer = dynamic_cast<PointerType*>(ptr);
+        p->elementType = pointer->elementType;
+        p->depth = pointer->depth + 1;
+    } else {
+        p->elementType = ptr;
+    }
+    typePool.push_back(p);
+    return dynamic_cast<PointerType*>(typePool.back());
+}
+
+FuncType *TypeFactory::getFunction() {
+    typePool.push_back(new FuncType());
+    return dynamic_cast<FuncType*>(typePool.back());
+}
+
+Type *TypeFactory::makePrimitive(TypeKind kind, size_t size) {
+    if(primitives.find(kind) == primitives.end()) {
+        primitives[kind] = new PrimitiveType(kind, size);
+    }
+    return primitives[kind];
+}
+
+void TypeFactory::deleteAll() {
+    for(auto ptr : primitives) {
+        delete ptr.second;
+    }
+    for(auto ptr : typePool) {
+        delete ptr;
+    }
+}
+
+std::map<TypeKind,Type*> TypeFactory::primitives;
+std::vector<Type*> TypeFactory::typePool;

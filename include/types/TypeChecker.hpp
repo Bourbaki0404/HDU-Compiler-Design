@@ -31,6 +31,9 @@ struct class_def;
 struct member_access;
 struct pointer_acc;
 
+struct identifier;
+struct subscript_expr;
+
 
 struct Type;
 struct PrimitiveType;
@@ -93,6 +96,9 @@ struct TypeChecker {
 
     analyzeInfo analyze(member_access *node);
     analyzeInfo analyze(pointer_acc *node);
+    analyzeInfo analyze(subscript_expr *node);
+
+    analyzeInfo analyze(identifier *node);
 
     void analyzeFunctionBody(func_def *node);
     void analyzeInit(var_def* node);
@@ -118,6 +124,7 @@ private:
     void analyzeLogicAnd(binary_expr *node);
     void analyzeCompare(binary_expr *node);
     void analyzeEq(binary_expr *node);
+    void analyzeDeref(unary_expr *node);
     // Type checking state
     func_def *currentFuncDef;
     class_def *currentClassDef;

@@ -39,6 +39,8 @@ struct HasBindings {
     std::vector<std::string> bindings;
 };
 
+
+//Don't modify other's type, just creating new types
 struct Type {
     public:
         Type(TypeKind kind);
@@ -56,7 +58,6 @@ struct Type {
         std::vector<std::string> errorMsgs;
         bool hasError = false;
 };
-using TypePtr = std::unique_ptr<struct Type>;
 
 struct PrimitiveType : Type {
     public:
@@ -78,7 +79,7 @@ struct ErrorType : Type {
 
 struct ArrayType : public Type {
     ArrayType();
-    void setBaseTypeAndReverse(TypePtr ptr);
+    void setBaseTypeAndReverse(Type *ptr);
     void addDim(expPtr p);
     // evaluate all pending indexes into integers
     void evaluate(TypeChecker *ptr);
@@ -90,20 +91,20 @@ struct ArrayType : public Type {
     TypeKind kind;
     std::vector<expPtr> pendingDims;
     std::vector<size_t> dims;
-    TypePtr element_type;
+    Type *element_type;
 };
 
 struct FuncType : public Type, public HasBindings {
     FuncType();
-    void setRetTypeAndReverse(TypePtr ptr);
-    void setRetType(TypePtr ptr);
-    void addArgType(TypePtr argType);
+    void setRetTypeAndReverse(Type *ptr);
+    void setRetType(Type *ptr);
+    void addArgType(Type *argType);
     void setConst() override;
     bool equals(Type *other);
     std::string to_string() override;
     void evaluate(TypeChecker *ptr) override;
-    TypePtr retType = nullptr;
-    std::vector<TypePtr> argTypeList;
+    Type *retType = nullptr;
+    std::vector<Type*> argTypeList;
 };
 
 using FuncTypePtr = std::unique_ptr<FuncType>;
@@ -145,7 +146,6 @@ struct ClassType : Type {
     bool addMethod(std::string str, MethodInfo info);
     bool addField(std::string str, FieldInfo info);
     void setConst() override;
-    std::string name;
     std::string baseClass;                  // Single parent (empty if none)
     // The class scope
     std::unordered_map<std::string, FieldInfo> fields;          // Member variables
@@ -166,15 +166,22 @@ struct ClassVarType : Type {
 
 struct TypeFactory {
     public:
-        static TypePtr getTypeFromName(const std::string& type_name);
-        static TypePtr getVoid();
-        static TypePtr getInt();
-        static TypePtr getFloat(); 
-        static TypePtr getChar();
-        static TypePtr getBool();
-        static TypePtr getArray();
+        static struct Type *getTypeFromName(const std::string& type_name);
+        static struct Type *getVoid();
+        static struct Type *getInt();
+        static struct Type *getFloat(); 
+        static struct Type *getChar();
+        static struct Type *getBool();
+        static struct Type *getArray();
+        static ClassVarType *getClassVar(std::string classname);
+        static PointerType *getPointer();
+        static PointerType *getPointerTo(struct Type *ptr);
+        static FuncType *getFunction();
+        static void deleteAll();
     private:
-        static TypePtr makePrimitive(TypeKind kind, size_t size);
+        static struct Type* makePrimitive(TypeKind kind, size_t size);
+        static std::map<TypeKind,struct Type*> primitives;
+        static std::vector<struct Type*> typePool;
 };
 
 #endif

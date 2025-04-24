@@ -118,7 +118,7 @@ lval_expr::lval_expr() : expr({-1, -1}, nullptr) {
 
 std::string lval_expr::to_string() {
     return "LVal <id " + id + (inferred_type != nullptr ? ", type " + inferred_type->to_string() : "") + "> " + 
-    (inferred_type ? color::magenta + std::string("inferredType: ") + inferred_type->to_string() + color::reset + " ": "");;
+    (inferred_type ? color::magenta + std::string("inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
 }
 
 void lval_expr::printAST(std::string prefix, std::string info_prefix) {
@@ -446,7 +446,7 @@ std::string func_def::to_string() {
     if(is_constructor) {
         return "Ctor <id: " + name + ">";
     } else {
-        return "FuncDef <ret_type: " + (type ? (type->retType ? type->retType->to_string() : "") : "") + ", id: " + name + ">";
+        return "FuncDef <ret_type: " + std::string(color::magenta) + (type ? (type->retType ? type->retType->to_string() : "") : "") + color::reset + ", id: " + name + ">";
     }
     return {};
 }
@@ -525,7 +525,7 @@ std::string var_def::to_string() {
 void var_def::printAST(std::string prefix, std::string info_prefix) {
     std::cout << info_prefix << to_string() << "\n";
     if(type && type->kind == TypeKind::Array) {
-        ArrayType *p = static_cast<ArrayType*>(type.get());
+        ArrayType *p = static_cast<ArrayType*>(type);
         if(!init_val) {
             p->printUnevaludatedType(prefix + "    ", prefix + "└── ");
         } else {
@@ -600,26 +600,26 @@ void var_def::finalizeType(std::string type_name) {
     if(this->type == nullptr) {
         this->type = TypeFactory::getTypeFromName(type_name);
     } else if(this->type->kind == TypeKind::Array) {
-        ArrayType* ptr = dynamic_cast<ArrayType*>(this->type.get());
+        ArrayType* ptr = dynamic_cast<ArrayType*>(this->type);
         if(!ptr->element_type) {
             ptr->element_type = TypeFactory::getTypeFromName(type_name);
         } else if(ptr->element_type->kind == TypeKind::Pointer) {
-            PointerType *pointer = dynamic_cast<PointerType*>(ptr->element_type.get());
-            pointer->elementType = TypeFactory::getTypeFromName(type_name).release();
+            PointerType *pointer = dynamic_cast<PointerType*>(ptr->element_type);
+            pointer->elementType = TypeFactory::getTypeFromName(type_name);
         }
     } else if(this->type->kind == TypeKind::Pointer) {
-        PointerType* ptr = dynamic_cast<PointerType*>(this->type.get());
-        ptr->elementType = TypeFactory::getTypeFromName(type_name).release();
+        PointerType* ptr = dynamic_cast<PointerType*>(this->type);
+        ptr->elementType = TypeFactory::getTypeFromName(type_name);
     } else if(this->kind == TypeKind::Function) {
-        FuncType* fun = dynamic_cast<FuncType*>(this->type.get());
+        FuncType* fun = dynamic_cast<FuncType*>(this->type);
         if(fun->retType == nullptr) {
             fun->retType = TypeFactory::getTypeFromName(type_name);
         } else if(fun->retType->kind == TypeKind::Array) {
-            ArrayType* ptr = dynamic_cast<ArrayType*>(fun->retType.get());
+            ArrayType* ptr = dynamic_cast<ArrayType*>(fun->retType);
             ptr->setBaseTypeAndReverse(TypeFactory::getTypeFromName(type_name));
         } else if(fun->retType->kind == TypeKind::Pointer) {
-            PointerType* ptr = dynamic_cast<PointerType*>(fun->retType.get());
-            ptr->elementType = TypeFactory::getTypeFromName(type_name).release();
+            PointerType* ptr = dynamic_cast<PointerType*>(fun->retType);
+            ptr->elementType = TypeFactory::getTypeFromName(type_name);
         }
     }
 }
@@ -784,7 +784,8 @@ pointer_acc::pointer_acc(std::pair<size_t, size_t> loc, expPtr exp, const std::s
 
 // Convert node to string representation
 std::string pointer_acc::to_string() {
-    return "pointer_acc <kind " + std::string(isFunc ? "method" : "var") + ", member " + name + ">";
+    return "pointer_acc <kind " + std::string(isFunc ? "method" : "var") + ", member " + name + ">" 
+    + (inferred_type ? color::magenta + std::string(" inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
 }
 
 // Print AST structure
@@ -861,6 +862,71 @@ codeGenInfo type_cast::dispatch(codeGen *ptr)
 }
 
 constInfo type_cast::const_eval(TypeChecker *ptr)
+{
+    return constInfo();
+}
+
+subscript_expr::subscript_expr(std::pair<size_t, size_t> loc, expPtr list, expPtr sub)
+:expr(loc, nullptr) {
+    this->list = std::move(list);
+    this->sub = std::move(sub);
+}
+
+std::string subscript_expr::to_string()
+{
+    return "subscript_expr " + 
+        (inferred_type ? color::magenta + std::string(" inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
+}
+
+void subscript_expr::printAST(std::string prefix, std::string info_prefix)
+{
+    std::cout << info_prefix << to_string() << locToString(location, error_msg);
+    list->printAST(prefix + "│   ", prefix + "├── ");
+    sub->printAST(prefix + "    ", prefix + "└── ");
+}
+
+analyzeInfo subscript_expr::dispatch(TypeChecker *ptr)
+{
+    return ptr->analyze(this);
+}
+
+codeGenInfo subscript_expr::dispatch(codeGen *ptr)
+{
+    return codeGenInfo();
+}
+
+constInfo subscript_expr::const_eval(TypeChecker *ptr)
+{
+    return constInfo();
+}
+
+identifier::identifier(std::pair<size_t, size_t> loc, std::string name)
+:expr(loc, nullptr) {
+    this->name = name;
+}
+
+std::string identifier::to_string()
+{
+    return "identifier<id " + this->name + "> " + (
+        inferred_type ? color::magenta + std::string(" inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
+}
+
+void identifier::printAST(std::string prefix, std::string info_prefix)
+{
+    std::cout << info_prefix << to_string() << locToString(location, error_msg);
+}
+
+analyzeInfo identifier::dispatch(TypeChecker *ptr)
+{
+    return ptr->analyze(this);
+}
+
+codeGenInfo identifier::dispatch(codeGen *ptr)
+{
+    return codeGenInfo();
+}
+
+constInfo identifier::const_eval(TypeChecker *ptr)
 {
     return constInfo();
 }

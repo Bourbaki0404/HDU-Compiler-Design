@@ -1,6 +1,5 @@
 #include "symbolTable/symbolTable.hpp"
 
-
 SymbolTable::SymbolTable() {
     scopes.push_back({});//the global env
 }
@@ -27,6 +26,16 @@ bool SymbolTable::exists(const std::string &symbol)
 bool SymbolTable::isInCurrentScope(const std::string& symbol) {
     if(scopes.back().find(symbol) == scopes.back().end()) return false;
     return true;
+}
+
+bool SymbolTable::isInGlobal(const std::string &symbol)
+{
+    return !(scopes[0].find(symbol) == scopes[0].end());
+}
+
+Symbol SymbolTable::getFromGlobal(const std::string &symbol)
+{
+    return scopes[0].at(symbol);
 }
 
 Symbol SymbolTable::getValue(const std::string &symbol)

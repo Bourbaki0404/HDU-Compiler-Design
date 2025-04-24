@@ -24,7 +24,7 @@ int (main) (int argc, char* argv[]) {
     exportLRTableToCSV(table, "table.csv");
 #endif
     LRTable table1 = importLRTableFromCSV("table.csv");
-    auto result = std::move(Parse(tokens, table1, false));
+    auto result = std::move(Parse(tokens, table1, true));
 
     if(result.node == nullptr) {
         return 1;
@@ -32,16 +32,17 @@ int (main) (int argc, char* argv[]) {
     result.node->ptr->printAST("", "");
 
     TypeChecker *ptr = new TypeChecker;
-    ptr->analyze(static_cast<program*>(result.node->ptr.get()));
+    ptr->analyze(dynamic_cast<program*>(result.node->ptr.get()));
     result.node->ptr.get()->printAST("", "");
     ptr->dumpErrors(std::string(argv[1]));
-    if(ptr->hasTypeError()) {
-        // std::cout << "\nThe program has semantics error, thus compilation stops.\n";
-        return 1;
-    }
-
+    // if(ptr->hasTypeError()) {
+    //     // std::cout << "\nThe program has semantics error, thus compilation stops.\n";
+    //     return 1;
+    // }
     // codeGen codegen;
-    // struct program *program = nullptr;
+    // struct program *program = dynamic_cast<struct program*>(result.node->ptr.get());
     // codegen.analyze(program);
+
+    TypeFactory::deleteAll();
     return 0;
 }

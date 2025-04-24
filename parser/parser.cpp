@@ -405,8 +405,6 @@ const std::vector<ruleAction> ruleWithAction = {
         funcDef->set_body(blockPtr(static_cast<block_stmt*>(children[3]->ptr.release())));
         funcDef->setCtor();
         funcDef->name = children[0]->str_val;
-        fun->addArgType(TypeFactory::getVoid());
-        fun->bindings.push_back("");
         funcDef->type = fun;
         res->set_node(nodePtr(funcDef));
         return res;
@@ -494,7 +492,7 @@ const std::vector<ruleAction> ruleWithAction = {
         std::string id = children[0]->str_val;
         var_def* arr = new var_def(children[0]->location);
         arr->setId(id);
-        arr->type = TypePtr(children[0]->type);
+        arr->type = children[0]->type;
         res->set_node(nodePtr(arr));
         return res;
     }),
@@ -504,7 +502,7 @@ const std::vector<ruleAction> ruleWithAction = {
         var_def* arr = new var_def(children[0]->location);
         arr->setId(id);
         arr->setInitVal(nodePtr(children[2]->ptr.release()));
-        arr->type = TypePtr(children[0]->type);
+        arr->type = children[0]->type;
         res->set_node(nodePtr(arr));
         return res;
     }),
@@ -583,8 +581,8 @@ const std::vector<ruleAction> ruleWithAction = {
         if(fun->retType == nullptr) {
             fun->retType = TypeFactory::getTypeFromName(children[0]->str_val);
         } else if(fun->retType->kind == TypeKind::Pointer) {
-            PointerType *pointer = dynamic_cast<PointerType*>(fun->retType.get());
-            pointer->elementType = TypeFactory::getTypeFromName(children[0]->str_val).release();
+            PointerType *pointer = dynamic_cast<PointerType*>(fun->retType);
+            pointer->elementType = TypeFactory::getTypeFromName(children[0]->str_val);
         }
         funcDef->type = fun;
         std::reverse(funcDef->type->argTypeList.begin(), funcDef->type->argTypeList.end());
@@ -604,10 +602,10 @@ const std::vector<ruleAction> ruleWithAction = {
             if(arr->element_type == nullptr) {
                 PointerType *pointer = new PointerType();
                 pointer->elementType = nullptr;
-                arr->element_type = TypePtr(pointer);
+                arr->element_type = pointer;
             } else if(arr->element_type->kind == TypeKind::Pointer && 
-                    ((PointerType*)(arr->element_type.get()))->elementType == nullptr) {
-                auto ptr = (PointerType*)(arr->element_type.get());
+                    ((PointerType*)(arr->element_type))->elementType == nullptr) {
+                auto ptr = (PointerType*)(arr->element_type);
                 ptr->depth++;
             } else {
                 std::cout << "Pointer Fault\n";
@@ -618,10 +616,10 @@ const std::vector<ruleAction> ruleWithAction = {
             if(fun->retType == nullptr) {
                 PointerType *pointer = new PointerType();
                 pointer->elementType = nullptr;
-                fun->retType = TypePtr(pointer);
+                fun->retType = pointer;
             } else if(fun->retType->kind == TypeKind::Pointer && 
-                    ((PointerType*)(fun->retType.get()))->elementType == nullptr) {
-                auto ptr = (PointerType*)(fun->retType.get());
+                    ((PointerType*)(fun->retType))->elementType == nullptr) {
+                auto ptr = (PointerType*)(fun->retType);
                 ptr->depth++;
             } else {
                 std::cout << "Pointer Fault\n";
@@ -662,6 +660,14 @@ const std::vector<ruleAction> ruleWithAction = {
         return res;
     }),
 
+    ruleAction(rule(TypeDeclIdxTail, {LBK, RBK, TypeDeclIdxTail}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        ArrayType *type = dynamic_cast<ArrayType*>(children[2]->type);
+        type->addDim(expPtr(new int_literal(children[0]->location, 0)));
+        res->set_type(type);
+        return res;
+    }),
+
     ruleAction(rule(TypeDeclIdxTail, {LBK, ConstExp, RBK}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         ArrayType *type = new ArrayType();
@@ -679,8 +685,6 @@ const std::vector<ruleAction> ruleWithAction = {
     ruleAction(rule(TypeSuffix, {LPR, RPR}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         FuncType *fun = new FuncType();
-        fun->addArgType(TypeFactory::getVoid());
-        fun->bindings.push_back("");
         res->set_type(fun);
         return res;
     }),
@@ -688,7 +692,7 @@ const std::vector<ruleAction> ruleWithAction = {
     ruleAction(rule(FuncFParams, {FuncFParam}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         FuncType *fun = new FuncType();
-        fun->addArgType(TypePtr(children[0]->type));
+        fun->addArgType(children[0]->type);
         fun->bindings.push_back(children[0]->str_val);
         res->set_type(fun);
         return res;
@@ -697,7 +701,7 @@ const std::vector<ruleAction> ruleWithAction = {
     ruleAction(rule(FuncFParams, {FuncFParam, FuncFParamsTail}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         FuncType *fun = dynamic_cast<FuncType*>(children[1]->type);
-        fun->addArgType(TypePtr(children[0]->type));
+        fun->addArgType(children[0]->type);
         fun->bindings.push_back(children[0]->str_val);
         res->set_type(fun);
         return res;
@@ -706,7 +710,7 @@ const std::vector<ruleAction> ruleWithAction = {
     ruleAction(rule(FuncFParamsTail, {COMMA, FuncFParam, FuncFParamsTail}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         FuncType *fun = dynamic_cast<FuncType*>(children[2]->type);
-        fun->addArgType(TypePtr(children[1]->type));
+        fun->addArgType(children[1]->type);
         fun->bindings.push_back(children[1]->str_val);
         res->set_type(fun);
         return res;
@@ -715,7 +719,7 @@ const std::vector<ruleAction> ruleWithAction = {
     ruleAction(rule(FuncFParamsTail, {COMMA, FuncFParam}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         FuncType *fun = new FuncType();
-        fun->addArgType(TypePtr(children[1]->type));
+        fun->addArgType(children[1]->type);
         fun->bindings.push_back(children[1]->str_val);
         res->set_type(fun);
         return res;
@@ -723,16 +727,16 @@ const std::vector<ruleAction> ruleWithAction = {
 
     ruleAction(rule(FuncFParam, {Type, Declarator}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        struct Type *result_type = TypeFactory::getTypeFromName(children[0]->str_val).release();
+        struct Type *result_type = TypeFactory::getTypeFromName(children[0]->str_val);
         if(children[1]->type == nullptr) { //no declarator
             children[1]->type = result_type;
         } else if(children[1]->type->kind == TypeKind::Function) {
             struct Type *type = children[1]->type;
             FuncType *func = dynamic_cast<FuncType*>(type);
             if(func->retType == nullptr) { //not a pointer
-                func->retType = TypePtr(result_type);
+                func->retType = result_type;
             } else if(func->retType->kind == TypeKind::Pointer) {
-                PointerType *pointer = dynamic_cast<PointerType*>(func->retType.get());
+                PointerType *pointer = dynamic_cast<PointerType*>(func->retType);
                 pointer->elementType = result_type;
             } else {
                 std::cout << "rule funcparam->type declarator\n";
@@ -742,9 +746,9 @@ const std::vector<ruleAction> ruleWithAction = {
             struct Type *type = children[1]->type;
             ArrayType *arr = dynamic_cast<ArrayType*>(type);
             if(arr->element_type == nullptr) { //not a pointer
-                arr->element_type = TypePtr(result_type);
+                arr->element_type = result_type;
             } else if(arr->element_type->kind == TypeKind::Pointer) {
-                PointerType *pointer = dynamic_cast<PointerType*>(arr->element_type.get());
+                PointerType *pointer = dynamic_cast<PointerType*>(arr->element_type);
                 pointer->elementType = result_type;
             } else {
                 std::cout << "rule funcparam->type declarator\n";
@@ -882,24 +886,24 @@ const std::vector<ruleAction> ruleWithAction = {
 
     // Expressions (from your original set)
     rule(Exp, {LOrExp}),
-    ruleAction(rule(LVal, {ID, LValTail}), [](std::vector<parseInfoPtr>& children) {
+    // ruleAction(rule(LVal, {ID, LValTail}), [](std::vector<parseInfoPtr>& children) {
         
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        lval_expr *p = static_cast<lval_expr*>(children[1]->ptr.release());
-        p->setIdAndReverseDim(children[0]->str_val);
-        p->setLoc(children[0]->location);
-        res->set_node(lvalPtr(p));
-        return res;
-    }),
-    ruleAction(rule(LValTail, {LBK, Exp, RBK, LValTail}), [](std::vector<parseInfoPtr>& children) {
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    //     lval_expr *p = static_cast<lval_expr*>(children[1]->ptr.release());
+    //     p->setIdAndReverseDim(children[0]->str_val);
+    //     p->setLoc(children[0]->location);
+    //     res->set_node(lvalPtr(p));
+    //     return res;
+    // }),
+    // ruleAction(rule(LValTail, {LBK, Exp, RBK, LValTail}), [](std::vector<parseInfoPtr>& children) {
         
-        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
-        lval_expr *p = static_cast<lval_expr*>(children[3]->ptr.release());
-        expr *ptr = static_cast<expr*>(children[1]->ptr.release());
-        p->addDim(expPtr(ptr));
-        res->set_node(nodePtr(p));
-        return res;
-    }),
+    //     parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+    //     lval_expr *p = static_cast<lval_expr*>(children[3]->ptr.release());
+    //     expr *ptr = static_cast<expr*>(children[1]->ptr.release());
+    //     p->addDim(expPtr(ptr));
+    //     res->set_node(nodePtr(p));
+    //     return res;
+    // }),
     ruleAction(rule(LValTail, {}), [](std::vector<parseInfoPtr>& children) {
         parseInfoPtr res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1}); //loc not used
         lval_expr *p = new lval_expr();
@@ -950,6 +954,22 @@ const std::vector<ruleAction> ruleWithAction = {
         }
         method_call->isFunc = true;
         res->set_node(nodePtr(method_call));
+        return res;
+    }),
+
+    ruleAction(rule(PrimaryExp, {ID}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        expr *id = new identifier(res->location, children[0]->str_val);
+        res->set_node(nodePtr(id));
+        return res;
+    }),
+
+    // subscript
+    ruleAction(rule(PrimaryExp, {PrimaryExp, LBK, Exp, RBK}), [](std::vector<parseInfoPtr>& children) {
+        parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
+        expr *list = dynamic_cast<expr*>(children[0]->ptr.release());
+        auto sub = new subscript_expr(children[0]->location, expPtr(list), expPtr(dynamic_cast<expr*>(children[2]->ptr.release())));
+        res->set_node(nodePtr(sub));
         return res;
     }),
     
