@@ -148,20 +148,20 @@ struct identifier : public expr {
     std::string name;
 };
 
-struct lval_expr : public expr {
-    lval_expr();
-    std::string to_string() override;
-    void printAST(std::string prefix, std::string info_prefix) override;
-    void setIdAndReverseDim(std::string id);
-    void addDim(expPtr ptr);
-    void setLoc(std::pair<size_t, size_t> loc);
-    analyzeInfo dispatch(TypeChecker *ptr) override;
-    codeGenInfo dispatch(codeGen *ptr);
-    constInfo const_eval(TypeChecker *ptr) ;
-    std::string id;
-    std::vector<expPtr> dims;
-    struct Type *id_type = nullptr;
-};
+// struct lval_expr : public expr {
+//     lval_expr();
+//     std::string to_string() override;
+//     void printAST(std::string prefix, std::string info_prefix) override;
+//     void setIdAndReverseDim(std::string id);
+//     void addDim(expPtr ptr);
+//     void setLoc(std::pair<size_t, size_t> loc);
+//     analyzeInfo dispatch(TypeChecker *ptr) override;
+//     codeGenInfo dispatch(codeGen *ptr);
+//     constInfo const_eval(TypeChecker *ptr) ;
+//     std::string id;
+//     std::vector<expPtr> dims;
+//     struct Type *id_type = nullptr;
+// };
 
 
 struct stmt : public node {

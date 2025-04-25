@@ -111,54 +111,54 @@ constInfo binary_expr::const_eval(TypeChecker *ptr)
     return ptr->const_eval(this);
 }
 
-// LValue Expression
-lval_expr::lval_expr() : expr({-1, -1}, nullptr) {
-    ASTKind kind = LVAL;
-}
+// // LValue Expression
+// lval_expr::lval_expr() : expr({-1, -1}, nullptr) {
+//     ASTKind kind = LVAL;
+// }
 
-std::string lval_expr::to_string() {
-    return "LVal <id " + id + (inferred_type != nullptr ? ", type " + inferred_type->to_string() : "") + "> " + 
-    (inferred_type ? color::magenta + std::string("inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
-}
+// std::string lval_expr::to_string() {
+//     return "LVal <id " + id + (inferred_type != nullptr ? ", type " + inferred_type->to_string() : "") + "> " + 
+//     (inferred_type ? color::magenta + std::string("inferredType: ") + inferred_type->to_string() + color::reset + " ": "");
+// }
 
-void lval_expr::printAST(std::string prefix, std::string info_prefix) {
-    std::cout << info_prefix << to_string() << locToString(location, error_msg);
-    for (size_t i = 0; i < dims.size(); ++i) {
-        if(i != dims.size() - 1) {
-            dims[i]->printAST(prefix + "│   ", prefix + "├── ");
-        } else {
-            dims[i]->printAST(prefix + "    ", prefix + "└── ");
-        }
-    }
-}
+// void lval_expr::printAST(std::string prefix, std::string info_prefix) {
+//     std::cout << info_prefix << to_string() << locToString(location, error_msg);
+//     for (size_t i = 0; i < dims.size(); ++i) {
+//         if(i != dims.size() - 1) {
+//             dims[i]->printAST(prefix + "│   ", prefix + "├── ");
+//         } else {
+//             dims[i]->printAST(prefix + "    ", prefix + "└── ");
+//         }
+//     }
+// }
 
-void lval_expr::setIdAndReverseDim(std::string id) {
-    this->id = id;
-    std::reverse(dims.begin(), dims.end());
-}
+// void lval_expr::setIdAndReverseDim(std::string id) {
+//     this->id = id;
+//     std::reverse(dims.begin(), dims.end());
+// }
 
-void lval_expr::addDim(expPtr ptr) {
-    this->dims.push_back(std::move(ptr));
-}
+// void lval_expr::addDim(expPtr ptr) {
+//     this->dims.push_back(std::move(ptr));
+// }
 
-void lval_expr::setLoc(std::pair<size_t, size_t> loc) {
-    this->location = loc;
-}
+// void lval_expr::setLoc(std::pair<size_t, size_t> loc) {
+//     this->location = loc;
+// }
 
-analyzeInfo lval_expr::dispatch(TypeChecker *ptr)
-{
-    return ptr->analyze(this);
-}
+// analyzeInfo lval_expr::dispatch(TypeChecker *ptr)
+// {
+//     return ptr->analyze(this);
+// }
 
-codeGenInfo lval_expr::dispatch(codeGen *ptr)
-{
-    return ptr->analyze(this);
-}
+// codeGenInfo lval_expr::dispatch(codeGen *ptr)
+// {
+//     return ptr->analyze(this);
+// }
 
-constInfo lval_expr::const_eval(TypeChecker *ptr)
-{
-    return ptr->const_eval(this);
-}
+// constInfo lval_expr::const_eval(TypeChecker *ptr)
+// {
+//     return ptr->const_eval(this);
+// }
 
 // Statement Nodes
 stmt::stmt(std::pair<size_t, size_t> loc) : node(loc) {}
@@ -892,7 +892,7 @@ analyzeInfo subscript_expr::dispatch(TypeChecker *ptr)
 
 codeGenInfo subscript_expr::dispatch(codeGen *ptr)
 {
-    return codeGenInfo();
+    return ptr->analyze(this);
 }
 
 constInfo subscript_expr::const_eval(TypeChecker *ptr)
@@ -923,7 +923,7 @@ analyzeInfo identifier::dispatch(TypeChecker *ptr)
 
 codeGenInfo identifier::dispatch(codeGen *ptr)
 {
-    return codeGenInfo();
+    return ptr->analyze(this);
 }
 
 constInfo identifier::const_eval(TypeChecker *ptr)

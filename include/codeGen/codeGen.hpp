@@ -49,6 +49,7 @@ struct environment;
 
 struct codeGenInfo {
     llvm::Value *value;
+    bool is_ptr_to_value;
 };
 
 struct codeGen {
@@ -61,7 +62,8 @@ struct codeGen {
     // Expression nodes
     codeGenInfo analyze(binary_expr* node) ;
     codeGenInfo analyze(unary_expr* node) ;
-    codeGenInfo analyze(lval_expr* node) ;
+    codeGenInfo analyze(identifier* node);
+    codeGenInfo analyze(subscript_expr *node);
     codeGenInfo analyze(fun_call* node) ;
 
     // Literal nodes

@@ -32,10 +32,12 @@
 //     return 1;
 // }
 
-int *foo(int a1[][2]) {
-    return 1 + a1[1];
+
+int foo(int x[][3][4]) {
+    int u[3][4];
+    return 2 + x[1][2][3];
 }
 
-int main() {
-    return 2;
+int main(int x){
+    return x;
 }

@@ -35,13 +35,13 @@ int (main) (int argc, char* argv[]) {
     ptr->analyze(dynamic_cast<program*>(result.node->ptr.get()));
     result.node->ptr.get()->printAST("", "");
     ptr->dumpErrors(std::string(argv[1]));
-    // if(ptr->hasTypeError()) {
-    //     // std::cout << "\nThe program has semantics error, thus compilation stops.\n";
-    //     return 1;
-    // }
-    // codeGen codegen;
-    // struct program *program = dynamic_cast<struct program*>(result.node->ptr.get());
-    // codegen.analyze(program);
+    if(ptr->hasTypeError()) {
+        // std::cout << "\nThe program has semantics error, thus compilation stops.\n";
+        return 1;
+    }
+    codeGen codegen;
+    struct program *program = dynamic_cast<struct program*>(result.node->ptr.get());
+    codegen.analyze(program);
 
     TypeFactory::deleteAll();
     return 0;

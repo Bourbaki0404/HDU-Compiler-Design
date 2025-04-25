@@ -372,117 +372,117 @@ analyzeInfo TypeChecker::analyze(identifier *node)
     };
 }
 
-analyzeInfo TypeChecker::analyze(lval_expr* node) {
-    if(!symbolTable->exists(node->id)) {
-        TypeError(node, "Identifer '" + node->id + "' is not bound");
-        node->inferred_type = HASERROR.type;
-        return HASERROR;
-    } 
-    auto sym = symbolTable->getValue(node->id);
-    if(sym.type->equals(HASERROR.type)) {
-        TypeError(node, "Identifer '" + node->id + "' is ill-typed");
-        node->inferred_type = HASERROR.type;
-        return HASERROR;
-    }
-    if(sym.kind == symbolKind::FUNCTION || sym.type->kind == TypeKind::Function) {
-        TypeError(node, "Lval cannot be function");
-        node->inferred_type = HASERROR.type;
-        return HASERROR;
-    }
-    if(sym.kind == symbolKind::CLASS_DEF) {
-        TypeError(node, "Lval cannot be classname");
-        node->inferred_type = HASERROR.type;
-        return HASERROR;
-    }
-    node->id_type = sym.type;
+// analyzeInfo TypeChecker::analyze(lval_expr* node) {
+//     if(!symbolTable->exists(node->id)) {
+//         TypeError(node, "Identifer '" + node->id + "' is not bound");
+//         node->inferred_type = HASERROR.type;
+//         return HASERROR;
+//     } 
+//     auto sym = symbolTable->getValue(node->id);
+//     if(sym.type->equals(HASERROR.type)) {
+//         TypeError(node, "Identifer '" + node->id + "' is ill-typed");
+//         node->inferred_type = HASERROR.type;
+//         return HASERROR;
+//     }
+//     if(sym.kind == symbolKind::FUNCTION || sym.type->kind == TypeKind::Function) {
+//         TypeError(node, "Lval cannot be function");
+//         node->inferred_type = HASERROR.type;
+//         return HASERROR;
+//     }
+//     if(sym.kind == symbolKind::CLASS_DEF) {
+//         TypeError(node, "Lval cannot be classname");
+//         node->inferred_type = HASERROR.type;
+//         return HASERROR;
+//     }
+//     node->id_type = sym.type;
 
-    size_t rem_dim = node->dims.size();
-    if(rem_dim == 0) {
-        node->inferred_type = sym.type;
-        return analyzeInfo{
-            .type = sym.type
-        };
-    }
-    Type *cur = sym.type;
-    size_t cur_dim = 0;
-    if(cur->kind == TypeKind::Array) {
-        cur_dim = dynamic_cast<ArrayType*>(cur)->dims.size();
-    } else if(cur->kind == TypeKind::Pointer) {
-        cur_dim = dynamic_cast<PointerType*>(cur)->depth;
-    }
-    while(rem_dim != 0) {
-        if(cur_dim > rem_dim) {
-            if(cur->kind == TypeKind::Pointer) {
-                PointerType *pointer = dynamic_cast<PointerType*>(cur);
-                PointerType *new_pointer = TypeFactory::getPointer();
-                new_pointer->elementType = pointer->elementType;
-                new_pointer->depth = cur_dim - rem_dim;
-                node->inferred_type = new_pointer;
-            } else if(cur->kind == TypeKind::Array) {
-                ArrayType *arr = dynamic_cast<ArrayType*>(cur);
-                ArrayType *new_arr = dynamic_cast<ArrayType*>(TypeFactory::getArray());
-                new_arr->element_type = arr->element_type;
-                for(size_t i = 0; i < cur_dim - rem_dim; i++) {
-                    new_arr->dims.push_back(arr->dims[rem_dim + i]);
-                }
-                node->inferred_type = new_arr;
-            }
-            return analyzeInfo{
-                .type = node->inferred_type
-            };
-        } else if(cur_dim == rem_dim) {
-            rem_dim -= cur_dim;
-            if(cur->kind == TypeKind::Pointer) {
-                PointerType *pointer = dynamic_cast<PointerType*>(cur);
-                node->inferred_type = pointer->elementType;
-                return analyzeInfo{
-                    .type = node->inferred_type
-                };
-            } else if(cur->kind == TypeKind::Array) {
-                ArrayType *array = dynamic_cast<ArrayType*>(cur);
-                node->inferred_type = array->element_type;
-                return analyzeInfo{
-                    .type = node->inferred_type
-                };
-            }
-        } else {
-            rem_dim -= cur_dim;
-            if(cur->kind == TypeKind::Pointer) {
-                PointerType *pointer = dynamic_cast<PointerType*>(cur);
-                if(pointer->elementType->kind == TypeKind::Array) {
-                    cur_dim = dynamic_cast<ArrayType*>(pointer->elementType)->dims.size();
-                } else if(pointer->elementType->kind == TypeKind::Pointer) {
-                    std::cout << "In analyze(lval_expr*), the pointer cannot point to a pointer\n";
-                    exit(1);
-                } else {
-                    cur_dim = 0; //primitives or class
-                }
-                cur = pointer->elementType;
-            } else if(cur->kind == TypeKind::Array) {
-                ArrayType *array = dynamic_cast<ArrayType*>(cur);
-                if(array->element_type->kind == TypeKind::Pointer) {
-                    cur_dim = dynamic_cast<PointerType*>(array->element_type)->depth;
-                } else if(array->element_type->kind == TypeKind::Array) {
-                    std::cout << "In analyze(lval_expr*), the array cannot hold another array\n";
-                    exit(1);
-                } else {
-                    cur_dim = 0;
-                }
-                cur = array->element_type;
-            } else {
-                TypeError(node, "Indexes mismatch");
-                node->inferred_type = HASERROR.type;
-                return HASERROR;
-            }
-        }
-    }
+//     size_t rem_dim = node->dims.size();
+//     if(rem_dim == 0) {
+//         node->inferred_type = sym.type;
+//         return analyzeInfo{
+//             .type = sym.type
+//         };
+//     }
+//     Type *cur = sym.type;
+//     size_t cur_dim = 0;
+//     if(cur->kind == TypeKind::Array) {
+//         cur_dim = dynamic_cast<ArrayType*>(cur)->dims.size();
+//     } else if(cur->kind == TypeKind::Pointer) {
+//         cur_dim = dynamic_cast<PointerType*>(cur)->depth;
+//     }
+//     while(rem_dim != 0) {
+//         if(cur_dim > rem_dim) {
+//             if(cur->kind == TypeKind::Pointer) {
+//                 PointerType *pointer = dynamic_cast<PointerType*>(cur);
+//                 PointerType *new_pointer = TypeFactory::getPointer();
+//                 new_pointer->elementType = pointer->elementType;
+//                 new_pointer->depth = cur_dim - rem_dim;
+//                 node->inferred_type = new_pointer;
+//             } else if(cur->kind == TypeKind::Array) {
+//                 ArrayType *arr = dynamic_cast<ArrayType*>(cur);
+//                 ArrayType *new_arr = dynamic_cast<ArrayType*>(TypeFactory::getArray());
+//                 new_arr->element_type = arr->element_type;
+//                 for(size_t i = 0; i < cur_dim - rem_dim; i++) {
+//                     new_arr->dims.push_back(arr->dims[rem_dim + i]);
+//                 }
+//                 node->inferred_type = new_arr;
+//             }
+//             return analyzeInfo{
+//                 .type = node->inferred_type
+//             };
+//         } else if(cur_dim == rem_dim) {
+//             rem_dim -= cur_dim;
+//             if(cur->kind == TypeKind::Pointer) {
+//                 PointerType *pointer = dynamic_cast<PointerType*>(cur);
+//                 node->inferred_type = pointer->elementType;
+//                 return analyzeInfo{
+//                     .type = node->inferred_type
+//                 };
+//             } else if(cur->kind == TypeKind::Array) {
+//                 ArrayType *array = dynamic_cast<ArrayType*>(cur);
+//                 node->inferred_type = array->element_type;
+//                 return analyzeInfo{
+//                     .type = node->inferred_type
+//                 };
+//             }
+//         } else {
+//             rem_dim -= cur_dim;
+//             if(cur->kind == TypeKind::Pointer) {
+//                 PointerType *pointer = dynamic_cast<PointerType*>(cur);
+//                 if(pointer->elementType->kind == TypeKind::Array) {
+//                     cur_dim = dynamic_cast<ArrayType*>(pointer->elementType)->dims.size();
+//                 } else if(pointer->elementType->kind == TypeKind::Pointer) {
+//                     std::cout << "In analyze(lval_expr*), the pointer cannot point to a pointer\n";
+//                     exit(1);
+//                 } else {
+//                     cur_dim = 0; //primitives or class
+//                 }
+//                 cur = pointer->elementType;
+//             } else if(cur->kind == TypeKind::Array) {
+//                 ArrayType *array = dynamic_cast<ArrayType*>(cur);
+//                 if(array->element_type->kind == TypeKind::Pointer) {
+//                     cur_dim = dynamic_cast<PointerType*>(array->element_type)->depth;
+//                 } else if(array->element_type->kind == TypeKind::Array) {
+//                     std::cout << "In analyze(lval_expr*), the array cannot hold another array\n";
+//                     exit(1);
+//                 } else {
+//                     cur_dim = 0;
+//                 }
+//                 cur = array->element_type;
+//             } else {
+//                 TypeError(node, "Indexes mismatch");
+//                 node->inferred_type = HASERROR.type;
+//                 return HASERROR;
+//             }
+//         }
+//     }
 
 
-    node->inferred_type = sym.type;
-    return analyzeInfo{
-        .type = sym.type
-    };
-}
+//     node->inferred_type = sym.type;
+//     return analyzeInfo{
+//         .type = sym.type
+//     };
+// }
 
 
 analyzeInfo TypeChecker::analyze(fun_call* node) {
@@ -517,6 +517,8 @@ analyzeInfo TypeChecker::analyze(fun_call* node) {
             << type->argTypeList.size() << " arguments, but "
             << node->args.size() << " is provided";
         TypeError(node, ss.str());
+        node->inferred_type = HASERROR.type;
+        return HASERROR;
     }
     for(size_t i = 0; i < std::min(node->args.size(), type->argTypeList.size()); i++) {
         if(!type->argTypeList[i]->equals(node->args[i]->inferred_type)) {
@@ -526,6 +528,8 @@ analyzeInfo TypeChecker::analyze(fun_call* node) {
             << type->argTypeList[i]->to_string() << ", but "
             << node->args[i]->inferred_type->to_string() << " is provided";
             TypeError(node, ss.str());
+            node->inferred_type = HASERROR.type;
+            return HASERROR;
         }
     }
 
@@ -668,6 +672,11 @@ void TypeChecker::analyzeFunctionBody(func_def *node) {
                 << "is redefined\n";
             TypeError(node, ss.str());
         }
+        Type *tmp = node->type->argTypeList[i];
+        if(tmp->kind == TypeKind::Array) {
+            ArrayType *arr = dynamic_cast<ArrayType*>(tmp);
+            node->type->argTypeList[i] = arr->degrade();
+        }
         symbolTable->insert(node->type->bindings[i], 
             Symbol{
                 .kind = VARIABLE,
@@ -704,7 +713,6 @@ void TypeChecker::analyzeFunctionBody(func_def *node) {
 
 analyzeInfo TypeChecker::analyze(func_def* node) {
     std::cout << "Entering function: " << node->name << "\n";
-    FuncType *p = new FuncType();
     node->type->evaluate(this);
 
     // symbolTable->printCurScope();
@@ -722,7 +730,7 @@ analyzeInfo TypeChecker::analyze(func_def* node) {
     }
 
     symbolTable->insert(node->name, Symbol{.kind = FUNCTION,
-                                           .type = p,
+                                           .type = node->type,
                                            .data = nullptr});
     return analyzeInfo();
 }
@@ -1188,29 +1196,29 @@ constInfo TypeChecker::const_eval(binary_expr *node)
     return constInfo();
 }
 
-constInfo TypeChecker::const_eval(lval_expr *node)
-{
-    if(!symbolTable->exists(node->id)) {
-        TypeError(node, "The symbol name is not found");
-        return constInfo();
-    } 
-    Symbol sym = symbolTable->getValue(node->id);
-    if(node->inferred_type->is_const == false) {
-        TypeError(node, "The bound value is not known at compile time");
-        return constInfo();
-    } else if(node->inferred_type->equals(TypeFactory::getInt())) {
-        if(node->dims.size() == 0) {
-            return constInfo{
-                .is_const = true,
-                .value = sym.data,
-                .type = node->inferred_type
-            };
-        }
-    } else if(node->inferred_type->kind == TypeKind::Array) {
+// constInfo TypeChecker::const_eval(lval_expr *node)
+// {
+//     if(!symbolTable->exists(node->id)) {
+//         TypeError(node, "The symbol name is not found");
+//         return constInfo();
+//     } 
+//     Symbol sym = symbolTable->getValue(node->id);
+//     if(node->inferred_type->is_const == false) {
+//         TypeError(node, "The bound value is not known at compile time");
+//         return constInfo();
+//     } else if(node->inferred_type->equals(TypeFactory::getInt())) {
+//         if(node->dims.size() == 0) {
+//             return constInfo{
+//                 .is_const = true,
+//                 .value = sym.data,
+//                 .type = node->inferred_type
+//             };
+//         }
+//     } else if(node->inferred_type->kind == TypeKind::Array) {
         
-    }
-    return constInfo();
-}
+//     }
+//     return constInfo();
+// }
 
 constInfo TypeChecker::const_eval(fun_call *node)
 {

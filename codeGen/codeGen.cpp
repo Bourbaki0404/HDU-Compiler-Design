@@ -92,8 +92,6 @@ codeGenInfo codeGen::analyzeGt(binary_expr *node) {
 
 // Expression nodes
 codeGenInfo codeGen::analyze(binary_expr* node) {
-    auto info1 = node->left->dispatch(this);
-    auto info2 = node->right->dispatch(this);
     llvm::Value *result;
     if(node->op == "+" || node->op == "-") {
         return analyzeAdd(node);
@@ -123,44 +121,57 @@ codeGenInfo codeGen::analyze(unary_expr* node) {
     return codeGenInfo();
 }
 
-codeGenInfo codeGen::analyze(lval_expr* node) {
+//types except arrayType will generate load
+codeGenInfo codeGen::analyze(identifier* node) {
     if(node->inferred_type->kind == TypeKind::Pointer) {
-
+        auto info = cur->lookup(node->name);
+        auto localVar = llvm::dyn_cast<llvm::AllocaInst>(info.value);
+        auto value = builder->CreateLoad(localVar->getAllocatedType(), localVar, node->name);
+        // llvm::outs() << *value << "\n";
+        return codeGenInfo{
+            info.value = value
+        };
     } else if(node->inferred_type->kind == TypeKind::Array) {
-
+        auto info = cur->lookup(node->name);
+        return codeGenInfo{.value = info.value};
     } else if(node->inferred_type->kind == TypeKind::ClassVar){
 
     } else { //primitives
-        if(node->inferred_type->kind == TypeKind::Int) {
-            auto info = cur->lookup(node->id);
-            auto localVar = llvm::dyn_cast<llvm::AllocaInst>(info.value);
-            llvm::Value *offset = nullptr;
-            if(node->dims.size() > 0) {
-                for(size_t i = 0; i < node->dims.size(); i++) {
-                    auto suffix_value = node->dims[i]->dispatch(this).value;
-                    ArrayType *arr = dynamic_cast<ArrayType*>(node->id_type);
-                    if(i == 0) {
-                        offset = suffix_value;
-                    } else {
-                        auto v = builder->CreateMul(builder->getInt32(arr->dims[i]), offset);
-                        offset = builder->CreateAdd(v, suffix_value);
-                    }
-                }
-                auto addr = builder->CreateGEP(localVar->getType(), localVar, offset);
-                auto value = builder->CreateLoad(localVar->getAllocatedType(), localVar, node->id);
-                return codeGenInfo{
-                    info.value = value
-                };
-            } else {
-                auto value = builder->CreateLoad(localVar->getAllocatedType(), localVar, node->id);
-                return codeGenInfo{
-                    info.value = value
-                };
-            }
-        }
+        auto info = cur->lookup(node->name);
+        auto localVar = llvm::dyn_cast<llvm::AllocaInst>(info.value);
+        auto value = builder->CreateLoad(localVar->getAllocatedType(), localVar, node->name);
+        return codeGenInfo{
+            info.value = value
+        };
     }
-    return codeGenInfo();
 }
+
+
+
+codeGenInfo codeGen::analyze(subscript_expr *node) {
+    auto base_type = to_llvm_type(node->base_type);
+    llvm::Type *valueType = nullptr;
+    llvm::Value *value = nullptr;
+    auto info1 = node->list->dispatch(this);
+    auto info2 = node->sub->dispatch(this);
+    if(node->base_type->kind == TypeKind::Array) { // distinguish array and pointer to array to enable inbound check of the array
+        value = builder->CreateInBoundsGEP(base_type, info1.value, {builder->getInt32(0) , info2.value});
+        valueType = base_type->getArrayElementType();
+    } else if(node->base_type->kind == TypeKind::Pointer) {
+        // llvm::outs() << *info1.value->getType() << "\n";
+        // llvm::outs() << *base_type << "\n";
+        // module->print(llvm::outs(), nullptr);
+        valueType = base_type->getPointerElementType(); // pointer has no inbound check
+        value = builder->CreateGEP(valueType, info1.value, info2.value);
+    }
+    if(node->inferred_type->kind != TypeKind::Array) {
+        value = value = builder->CreateLoad(valueType, value);
+    }
+    return codeGenInfo{
+        .value = value
+    };
+}
+
 
 codeGenInfo codeGen::analyze(fun_call* node) {
     // TODO: Implement function call code generation
@@ -272,10 +283,19 @@ codeGenInfo codeGen::analyze(func_def* node) {
 
 codeGenInfo codeGen::analyze(var_def* node) {
     auto type = to_llvm_type(node->type);
-
-
     auto value = var_builder->CreateAlloca(type, nullptr, node->id);
+    if(node->init_val) {
+        init_val *val = dynamic_cast<init_val*>(node->init_val.get());
+        if(val->scalar) {
 
+        } else if(val->children.size() > 0) {
+
+        } else {
+            std::cout << "var_def codeGen analyze fail\n";
+            exit(1);
+        }
+    }
+    // module->print(llvm::outs(), nullptr);
     cur->insert(node->id, env_info{
         value
     });
@@ -296,11 +316,11 @@ codeGenInfo codeGen::analyze(program* node) {
     }
 
     bool hasErrors = llvm::verifyModule(*module, &llvm::errs());
+    module->print(llvm::outs(), nullptr);
     if (hasErrors) {
         llvm::errs() << "Module verification failed!\n";
         exit(1);
     }
-    module->print(llvm::outs(), nullptr);
     saveModuleToFile(outFileName);
     return codeGenInfo();
 }
@@ -370,8 +390,11 @@ llvm::Type *codeGen::to_llvm_type(Type *ptr)
         case TypeKind::Array: {
             ArrayType *arrayType = dynamic_cast<ArrayType*>(ptr);
             llvm::Type *elementType = to_llvm_type(arrayType->element_type);
-            // handling multi-dimensional array by flattening
-            
+            llvm::Type *array = elementType;// from clang
+            for(auto it = arrayType->dims.rbegin(); it != arrayType->dims.rend(); it++) {
+                array = llvm::ArrayType::get(array, *it);
+            }
+            return array;
         }
         default:
             std::cout << "Unsupported type in to_llvm_type: " << ptr->to_string() << std::endl;

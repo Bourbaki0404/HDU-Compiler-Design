@@ -10,7 +10,7 @@ struct program;
 struct expr;
 struct unary_expr;
 struct binary_expr;
-struct lval_expr;
+// struct lval_expr;
 struct stmt;
 struct expr_stmt;
 struct if_else_stmt;
@@ -68,7 +68,7 @@ struct TypeChecker {
     // Expression nodes
     analyzeInfo analyze(binary_expr* node) ;
     analyzeInfo analyze(unary_expr* node) ;
-    analyzeInfo analyze(lval_expr* node) ;
+    // analyzeInfo analyze(lval_expr* node) ;
     analyzeInfo analyze(fun_call* node) ;
 
     // Literal nodes
@@ -110,7 +110,7 @@ struct TypeChecker {
     // Evaluate Const
     constInfo const_eval(unary_expr *ptr);
     constInfo const_eval(binary_expr* node) ;
-    constInfo const_eval(lval_expr* node) ;
+    // constInfo const_eval(lval_expr* node) ;
     constInfo const_eval(fun_call* node) ;//always return false
     constInfo const_eval(int_literal* node);
 

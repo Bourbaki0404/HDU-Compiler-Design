@@ -804,7 +804,7 @@ const std::vector<ruleAction> ruleWithAction = {
     rule(BlockItem, {Stmt}),
 
     // Statements
-    rule(Stmt, {LVal, ASSIGN, Exp, SEMICOLON}),
+    // rule(Stmt, {LVal, ASSIGN, Exp, SEMICOLON}),
     ruleAction(rule(Stmt, {Exp, SEMICOLON}), [](std::vector<parseInfoPtr>& children) {
         
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
@@ -904,19 +904,19 @@ const std::vector<ruleAction> ruleWithAction = {
     //     res->set_node(nodePtr(p));
     //     return res;
     // }),
-    ruleAction(rule(LValTail, {}), [](std::vector<parseInfoPtr>& children) {
-        parseInfoPtr res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1}); //loc not used
-        lval_expr *p = new lval_expr();
-        res->set_node(nodePtr(p));
-        return res;
-    }),
+    // ruleAction(rule(LValTail, {}), [](std::vector<parseInfoPtr>& children) {
+    //     parseInfoPtr res = std::make_unique<parseInfo>(std::pair<size_t, size_t>{-1, -1}); //loc not used
+    //     lval_expr *p = new lval_expr();
+    //     res->set_node(nodePtr(p));
+    //     return res;
+    // }),
     ruleAction(rule(PrimaryExp, {LPR, Exp, RPR}), [](std::vector<parseInfoPtr>& children) {
         
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
         res->set_node(std::move(children[1]->ptr));
         return res;
     }),
-    rule(PrimaryExp, {LVal}),
+    // rule(PrimaryExp, {LVal}),
     ruleAction(rule(PrimaryExp, {NUM}), [](std::vector<parseInfoPtr>& children) {
         
         parseInfoPtr res = std::make_unique<parseInfo>(children[0]->location);
