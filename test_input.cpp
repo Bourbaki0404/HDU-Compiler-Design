@@ -1,16 +1,15 @@
 // void f(int p){return;}
 // #include <stdio.h>
 
-// class a {
-// public:
-//     int foo(int a, int b) {
-//         a + b;
-//         return a;
-//     }
-//     // a() {
-//     // }
-//     int o, b;
-// };
+class a {
+    int foo(int a, int b) {
+        a + b;
+        return a;
+    }
+    // a() {
+    // }
+    int o, b;
+};
 
 // class b : public a {
 // public:
@@ -36,9 +35,15 @@
 
 int foo() {
     int a[2][3] = {0,1,2};
+    int *b;
+    while(a[1][2]) {
+        int x = 2;
+    }
+    int c = *b + 1;
     return **a;
 }
 
 int main(int x){
-    return x;
+    // class a obj;
+    return 0;
 }

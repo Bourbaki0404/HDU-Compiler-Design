@@ -12,18 +12,29 @@ void codeGen::setOutputFileName(const std::string &name) {
     outFileName = name;
 } 
 
+
+/*
+
+Analyze the sum of two values. 
+Notice:
+
+To use GEP instruction for pointer arithmic, the type field should be set to the element type. For array
+accessing, the type should be the type of the array itself so that the subarray can be extracted.
+*/
 codeGenInfo codeGen::analyzeAdd(binary_expr *node) {
     auto info1 = node->left->dispatch(this);
     auto info2 = node->right->dispatch(this);
     llvm::Value *result;
+    llvm::outs() << *info1.value << "\n";
     if(node->left->inferred_type->kind == TypeKind::Int && node->left->inferred_type->kind == TypeKind::Int) {
         if(node->op == "+") result = builder->CreateAdd(info1.value, info2.value);
         if(node->op == "-") result = builder->CreateSub(info1.value, info2.value);
     } else if(node->left->inferred_type->kind == TypeKind::Pointer && node->right->inferred_type->kind == TypeKind::Int) {
-        result = builder->CreateGEP(to_llvm_type(node->left->inferred_type), info1.value, info2.value);
+        llvm::outs() << *info1.value << "\n";
+        result = builder->CreateInBoundsGEP(to_llvm_type(node->left->inferred_type)->getPointerElementType(), info1.value, info2.value);
     } else if(node->left->inferred_type->kind == TypeKind::Pointer && node->right->inferred_type->kind == TypeKind::Pointer && node->op == "-") {
         // builder->CreatePtrDiff(to_llvm_type(node->left->inferred_type) , info1.value, info2.value);
-    } 
+    }
     return codeGenInfo{
         .value = result
     };
@@ -124,21 +135,47 @@ If p points to an array, then dereferencing it
 */
 codeGenInfo codeGen::analyzePointDeref(unary_expr *node) {
     auto value = node->operand->dispatch(this).value;
-    PointerType *pointer = dynamic_cast<PointerType*>(node->inferred_type);
+    PointerType *pointer = dynamic_cast<PointerType*>(node->operand->inferred_type);
     if(pointer->elementType->kind == TypeKind::Array) {
-        
-    } else {
-        
+        llvm::outs() << *value << "\n";
+        return codeGenInfo{
+            .value = value
+        };
+    } else { //generate load
+        auto valueType = to_llvm_type(node->inferred_type);
+        value = builder->CreateLoad(valueType, value);
+        llvm::outs() << value << "\n";
+        return codeGenInfo{
+            .value = value
+        };
     }
+}
+
+codeGenInfo codeGen::analyzeSimpleUnary(unary_expr *node) {
+    auto value = node->operand->dispatch(this).value;
+    if(node->op == "-") {
+        if(node->inferred_type->kind == TypeKind::Int) {
+            value = builder->CreateSub(builder->getInt32(0), value);
+        }
+    } else if(node->op == "!") {
+        if(node->inferred_type->kind == TypeKind::Int) {
+            value = builder->CreateZExt(
+                builder->CreateICmpEQ(value, builder->getInt32(0)),
+                builder->getInt32Ty()
+            );
+            llvm::outs() << *value->getType() << "\n";
+        }
+    }
+    return codeGenInfo{
+        .value = value
+    };
 }
 
 codeGenInfo codeGen::analyze(unary_expr* node) {
     if(node->op == "*") {
         return analyzePointDeref(node);      
-    } else if(node->op == "!") {
-
-    } else if(node->op == "-") {
-
+    } else {
+        return analyzeSimpleUnary(node);
     }
 }
 
@@ -213,6 +250,22 @@ codeGenInfo codeGen::analyze(fun_call* node) {
     return codeGenInfo{
         .value = call
     };
+}
+
+/*
+Handling typecasting.
+1. Array -> Pointer to the subarray
+2. Int -> Float
+*/
+codeGenInfo codeGen::analyze(type_cast *node) {
+    auto value = node->exp->dispatch(this).value;
+    if(node->exp->inferred_type->kind == TypeKind::Array && node->target->kind == TypeKind::Pointer) { //pointer decay
+        value = builder->CreateInBoundsGEP(to_llvm_type(node->exp->inferred_type), value, {builder->getInt32(0), builder->getInt32(0)});
+        llvm::outs() << *value << *to_llvm_type(node->exp->inferred_type) << "\n";
+        return codeGenInfo{
+            .value = value
+        };
+    }
 }
 
 // Literal nodes
@@ -345,7 +398,24 @@ codeGenInfo codeGen::analyze(block_stmt* node) {
 
 // Declaration/definition nodes
 codeGenInfo codeGen::analyze(class_def* node) {
-    // TODO: Implement class definition code generation
+    auto cls = llvm::StructType::create(*ctx, node->name);
+    std::vector<llvm::Type*> fields;
+    for(auto pair : node->type->fields) {
+        auto fieldName = pair.first;
+        auto fieldInfo = pair.second;
+        std::cout << fieldName << fieldInfo.type->to_string() << "\n";
+        fields.push_back(to_llvm_type(fieldInfo.type));
+    }
+    cls->setBody(fields);
+
+    new llvm::GlobalVariable(
+    *module,
+    cls,  // The class type
+    false, // isConstant
+    llvm::GlobalValue::ExternalLinkage,
+    nullptr, // Initializer
+    node->name + "_type_anchor");
+    
     return codeGenInfo();
 }
 
@@ -404,7 +474,7 @@ codeGenInfo codeGen::analyze(var_def* node) {
         init_val *val = dynamic_cast<init_val*>(node->init_val.get());
         if(val->scalar) {
             auto scalar = val->scalar->dispatch(this).value;
-            // builder->CreateStore(scalar, addr);
+            builder->CreateStore(scalar, addr);
         } else if(val->children.size() > 0) {
             if(node->type->kind != TypeKind::Array) {
                 std::cout << "var_def array type error\n";

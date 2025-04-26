@@ -9,13 +9,16 @@
 ### Features:
 
 > 1. Handcrafted scanner.
-> 2. Rule-action style LR(1) parser.
+> 2. Rule-action style LR(1) parser with conflict resolution.
 > 3. Tree representation of program and statics checker with graceful error handling.
 > 4. Support preliminary oop and pointer type.
+> 5. LLVM-IR for intermediate codeGen.
 
 ### ToDos:
 
-> 1. Single-inheritance classes and dynamic dispatch.
+> 1. Class inheritance and dynamic dispatch.
 > 2. Support other primitive datatypes such as bool, float and char.
-> 3. LLVM IR, RISC-V backend and intermediate code optimizer.
-> 4. Overloading and type inference.
+> 3. RISC-V backend, static analyzer and intermediate code optimizer.
+> 4. Function overloading and type inference.
+> 5. Automatic memory management (garbage collection) for objects (specified by programmer).
+> 6. More syntatic support like typedef, lambda expression or namespace.

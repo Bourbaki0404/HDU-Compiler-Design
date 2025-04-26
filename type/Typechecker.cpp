@@ -53,6 +53,7 @@ std::cout << "Entering class: " << node->name << "\n";
     symbolTable->insert(node->name, Symbol{.kind = symbolKind::CLASS_DEF,
                                         .type = class_ptr,
                                         .data = nullptr});
+    node->type = class_ptr;
 
     symbolTable->beginScope();
 
@@ -96,7 +97,7 @@ std::cout << "Entering class: " << node->name << "\n";
     std::cout << "class scope:\n";
     symbolTable->printCurScope();
     symbolTable->endScope();
-    currentFuncDef = nullptr;
+    currentClassDef = nullptr;
     return analyzeInfo();
 }
 

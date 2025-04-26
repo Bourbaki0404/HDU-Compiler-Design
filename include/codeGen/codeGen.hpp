@@ -34,6 +34,7 @@ struct init_val;
 struct class_def;
 struct member_access;
 struct pointer_acc;
+struct type_cast;
 
 
 struct Type;
@@ -64,6 +65,7 @@ struct codeGen {
     codeGenInfo analyze(identifier* node);
     codeGenInfo analyze(subscript_expr *node);
     codeGenInfo analyze(fun_call* node) ;
+    codeGenInfo analyze(type_cast* node);
 
     // Literal nodes
     codeGenInfo analyze(int_literal* node) ;
@@ -103,6 +105,7 @@ private:
     codeGenInfo analyzeEq(binary_expr *node);
     codeGenInfo analyzeGt(binary_expr *node);
     codeGenInfo analyzePointDeref(unary_expr *node);
+    codeGenInfo analyzeSimpleUnary(unary_expr *node);
     // codeGenInfo analyzeNot()
     /*
         If the block has no terminating instruction, then set it to point to the target basic block.

@@ -858,7 +858,7 @@ analyzeInfo type_cast::dispatch(TypeChecker *ptr)
 
 codeGenInfo type_cast::dispatch(codeGen *ptr)
 {
-    return codeGenInfo();
+    return ptr->analyze(this);
 }
 
 constInfo type_cast::const_eval(TypeChecker *ptr)

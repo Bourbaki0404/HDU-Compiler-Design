@@ -373,7 +373,7 @@ public:
     std::string name;
     std::vector<nodePtr> children;
     //only will be filled in by typechecker
-    class_def *type = nullptr;
+    ClassType *type = nullptr;
 };
 
 struct member_access : expr {
