@@ -3,6 +3,9 @@
 codeGen::codeGen() {
     moduleInit();
     setOutputFileName("out.ll");
+    currentFn = nullptr;
+    curLoopStart = nullptr;
+    curLoopEnd = nullptr;
 }
 
 void codeGen::setOutputFileName(const std::string &name) {
@@ -92,7 +95,6 @@ codeGenInfo codeGen::analyzeGt(binary_expr *node) {
 
 // Expression nodes
 codeGenInfo codeGen::analyze(binary_expr* node) {
-    llvm::Value *result;
     if(node->op == "+" || node->op == "-") {
         return analyzeAdd(node);
     }
@@ -116,9 +118,28 @@ codeGenInfo codeGen::analyze(binary_expr* node) {
     }
 }
 
+/*
+Analyze the expression *p, where p could be a pointer to something, or to an array.
+If p points to an array, then dereferencing it
+*/
+codeGenInfo codeGen::analyzePointDeref(unary_expr *node) {
+    auto value = node->operand->dispatch(this).value;
+    PointerType *pointer = dynamic_cast<PointerType*>(node->inferred_type);
+    if(pointer->elementType->kind == TypeKind::Array) {
+        
+    } else {
+        
+    }
+}
+
 codeGenInfo codeGen::analyze(unary_expr* node) {
-    // TODO: Implement unary expression code generation
-    return codeGenInfo();
+    if(node->op == "*") {
+        return analyzePointDeref(node);      
+    } else if(node->op == "!") {
+
+    } else if(node->op == "-") {
+
+    }
 }
 
 //types except arrayType will generate load
@@ -174,8 +195,24 @@ codeGenInfo codeGen::analyze(subscript_expr *node) {
 
 
 codeGenInfo codeGen::analyze(fun_call* node) {
-    // TODO: Implement function call code generation
-    return codeGenInfo();
+    std::vector<llvm::Value*> args;
+    for (auto& arg : node->args) {
+        auto argVal = arg->dispatch(this).value;
+        args.push_back(argVal);
+    }
+    if(!global->isInCurEnv(node->func_name)) {
+        std::cout << "codeGen fun_call analyze fail\n";
+        exit(1);
+    }
+    auto fn = llvm::dyn_cast<llvm::Function>(global->lookup(node->func_name).value);
+    if(!fn) {
+        std::cout << "codeGen fun_call analyze fail\n";
+        exit(1);
+    }
+    auto call = builder->CreateCall(fn, args);
+    return codeGenInfo{
+        .value = call
+    };
 }
 
 // Literal nodes
@@ -192,22 +229,97 @@ codeGenInfo codeGen::analyze(expr_stmt* node) {
 }
 
 codeGenInfo codeGen::analyze(if_else_stmt* node) {
-    
+    auto cond = node->cond->dispatch(this).value;
+
+    llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(*ctx, "then", currentFn);
+    llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(*ctx, "else", currentFn);
+    llvm::BasicBlock *MeetBB = nullptr;
+    if(node->else_branch) {
+        MeetBB = llvm::BasicBlock::Create(*ctx, "meet");
+    }
+
+
+    if(node->cond->inferred_type->kind == TypeKind::Int) {
+        cond = builder->CreateICmpNE(cond, builder->getInt32(0));
+        builder->CreateCondBr(cond, ThenBB, ElseBB);
+    }
+
+    builder->SetInsertPoint(ThenBB);
+    node->if_branch->dispatch(this);
+    if(node->else_branch) {
+        terminateBlockWithBr(MeetBB, builder.get());
+    } else {
+        terminateBlockWithBr(ElseBB, builder.get());
+    }
+
+    if(node->else_branch) {
+        builder->SetInsertPoint(ElseBB);
+        node->else_branch->dispatch(this);
+        terminateBlockWithBr(MeetBB, builder.get());
+        currentFn->getBasicBlockList().push_back(MeetBB);
+        builder->SetInsertPoint(MeetBB);
+    } else {
+        builder->SetInsertPoint(ElseBB);
+    }
+
     return codeGenInfo();
 }
 
+/*
+
+.loop_start
+
+cond
+
+.loop_body
+
+body
+
+.loop_end
+
+remaining code
+*/
 codeGenInfo codeGen::analyze(while_stmt* node) {
-    // TODO: Implement while statement code generation
+    auto oldLoopStart = curLoopStart;
+    auto oldLoopEnd = curLoopEnd;
+
+    curLoopStart = llvm::BasicBlock::Create(*ctx, "loop_start", currentFn);
+    terminateBlockWithBr(curLoopStart, builder.get());
+    builder->SetInsertPoint(curLoopStart);
+    auto cond = node->cond->dispatch(this).value;
+
+    llvm::BasicBlock *LoopBody = llvm::BasicBlock::Create(*ctx, "loop_body", currentFn);
+    curLoopEnd = llvm::BasicBlock::Create(*ctx, "loop_end", currentFn);
+    if(node->cond->inferred_type->kind == TypeKind::Int) {
+        cond = builder->CreateICmpNE(cond, builder->getInt32(0));
+        builder->CreateCondBr(cond, LoopBody, curLoopEnd);
+    }
+    builder->SetInsertPoint(LoopBody);
+    node->body->dispatch(this);
+    terminateBlockWithBr(curLoopStart, builder.get());
+    builder->SetInsertPoint(curLoopEnd);
+
+    curLoopStart = oldLoopStart;
+    curLoopEnd = oldLoopEnd;
+
     return codeGenInfo();
 }
 
 codeGenInfo codeGen::analyze(break_stmt* node) {
-    // TODO: Implement break statement code generation
+    if(!curLoopEnd) {
+        std::cout << "break_stmt analyze fail\n";
+        exit(1);
+    }
+    builder->CreateBr(curLoopEnd);
     return codeGenInfo();
 }
 
 codeGenInfo codeGen::analyze(continue_stmt* node) {
-    // TODO: Implement continue statement code generation
+    if(!curLoopStart) {
+        std::cout << "break_stmt analyze fail\n";
+        exit(1);
+    }
+    builder->CreateBr(curLoopStart);
     return codeGenInfo();
 }
 
@@ -253,6 +365,7 @@ codeGenInfo codeGen::analyze(func_def* node) {
 
     auto entry = llvm::BasicBlock::Create(*ctx, "entry", currentFn);
     builder->SetInsertPoint(entry);
+    
     var_builder->SetInsertPoint(entry);
 
     environment *oldtable = cur;
@@ -261,7 +374,7 @@ codeGenInfo codeGen::analyze(func_def* node) {
     argIdx = 0;
     for (auto& arg : currentFn->args()) {
         auto alloca = builder->CreateAlloca(arg.getType(), nullptr, arg.getName());
-        builder->CreateStore(&arg, alloca);
+        var_builder->CreateStore(&arg, alloca);
         cur->insert(fn->bindings[argIdx], env_info{
             .value = alloca
         });
@@ -277,19 +390,39 @@ codeGenInfo codeGen::analyze(func_def* node) {
     delete cur;
     cur = oldtable;
 
+    currentFn->viewCFG(); 
+
     llvm::verifyFunction(*currentFn);
     return codeGenInfo();
 }
 
 codeGenInfo codeGen::analyze(var_def* node) {
     auto type = to_llvm_type(node->type);
-    auto value = var_builder->CreateAlloca(type, nullptr, node->id);
+    var_builder->SetInsertPoint(&currentFn->getEntryBlock(), currentFn->getEntryBlock().begin());
+    auto addr = var_builder->CreateAlloca(type, nullptr, node->id);
     if(node->init_val) {
         init_val *val = dynamic_cast<init_val*>(node->init_val.get());
         if(val->scalar) {
-
+            auto scalar = val->scalar->dispatch(this).value;
+            // builder->CreateStore(scalar, addr);
         } else if(val->children.size() > 0) {
-
+            if(node->type->kind != TypeKind::Array) {
+                std::cout << "var_def array type error\n";
+                exit(1);
+            }
+            ArrayType *arr = dynamic_cast<ArrayType*>(node->type);
+            if(!arr->is_const) {
+                llvm::Value *array_base = addr;
+                for(size_t i = 0; i < arr->dims.size(); i++) {
+                    // llvm::outs() << *array_base << "\n";
+                    array_base = builder->CreateInBoundsGEP(array_base->getType()->getPointerElementType(), array_base, {builder->getInt32(0), builder->getInt32(0)});
+                }
+                for(size_t i = 0; i < val->children.size(); i++) {
+                    auto llvm_elem_var = val->children[i]->scalar->dispatch(this).value;
+                    builder->CreateStore(llvm_elem_var, array_base);
+                    array_base = builder->CreateInBoundsGEP(array_base->getType()->getPointerElementType(), array_base, builder->getInt32(1)); 
+                }
+            }
         } else {
             std::cout << "var_def codeGen analyze fail\n";
             exit(1);
@@ -297,7 +430,7 @@ codeGenInfo codeGen::analyze(var_def* node) {
     }
     // module->print(llvm::outs(), nullptr);
     cur->insert(node->id, env_info{
-        value
+        addr
     });
     return codeGenInfo();
 }
@@ -325,12 +458,6 @@ codeGenInfo codeGen::analyze(program* node) {
     return codeGenInfo();
 }
 
-// Initialization node
-codeGenInfo codeGen::analyze(init_val* node) {
-    // TODO: Implement initialization value code generation
-    return codeGenInfo();
-}
-
 // Member access nodes
 codeGenInfo codeGen::analyze(member_access* node) {
     // TODO: Implement member access code generation
@@ -349,6 +476,12 @@ void codeGen::moduleInit() {
     var_builder = std::unique_ptr<llvm::IRBuilder<>>(new llvm::IRBuilder<>(*ctx));
     global = new environment();
     cur = global;
+}
+
+void codeGen::terminateBlockWithBr(llvm::BasicBlock *target, llvm::IRBuilder<>* builder) {
+    if(builder->GetInsertBlock()->getTerminator() == nullptr) {
+        builder->CreateBr(target);
+    }
 }
 
 llvm::Type *codeGen::to_llvm_type(Type *ptr)

@@ -685,7 +685,7 @@ analyzeInfo init_val::dispatch(TypeChecker *ptr)
 
 codeGenInfo init_val::dispatch(codeGen *ptr)
 {
-    return ptr->analyze(this);
+    return codeGenInfo();
 }
 
 class_def::class_def(std::pair<size_t, size_t> loc)

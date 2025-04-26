@@ -2,12 +2,13 @@
 // #include <stdio.h>
 
 // class a {
+// public:
 //     int foo(int a, int b) {
 //         a + b;
 //         return a;
 //     }
-//     a(int o, int b) {
-//     }
+//     // a() {
+//     // }
 //     int o, b;
 // };
 
@@ -33,9 +34,9 @@
 // }
 
 
-int foo(int x[][3][4]) {
-    int u[3][4];
-    return 2 + x[1][2][3];
+int foo() {
+    int a[2][3] = {0,1,2};
+    return **a;
 }
 
 int main(int x){

@@ -49,7 +49,6 @@ struct environment;
 
 struct codeGenInfo {
     llvm::Value *value;
-    bool is_ptr_to_value;
 };
 
 struct codeGen {
@@ -86,9 +85,6 @@ struct codeGen {
     // Program node
     codeGenInfo analyze(program* node) ;
 
-    // Initialization node
-    codeGenInfo analyze(init_val* node) ;
-
     codeGenInfo analyze(member_access *node);
     codeGenInfo analyze(pointer_acc *node);
 
@@ -106,6 +102,13 @@ private:
     codeGenInfo analyzeCompare(binary_expr *node);
     codeGenInfo analyzeEq(binary_expr *node);
     codeGenInfo analyzeGt(binary_expr *node);
+    codeGenInfo analyzePointDeref(unary_expr *node);
+    // codeGenInfo analyzeNot()
+    /*
+        If the block has no terminating instruction, then set it to point to the target basic block.
+        To use this function, the builder should already point to the end of the block.
+    */
+    void terminateBlockWithBr(llvm::BasicBlock *target, llvm::IRBuilder<>* builder);
 
     llvm::Type *to_llvm_type(Type *ptr);
 
@@ -115,6 +118,8 @@ private:
     std::unique_ptr<llvm::Module> module;
 
     llvm::Function *currentFn;
+    llvm::BasicBlock *curLoopStart;
+    llvm::BasicBlock *curLoopEnd;
     std::string outFileName;
 
     environment *cur;

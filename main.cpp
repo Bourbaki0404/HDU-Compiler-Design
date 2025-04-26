@@ -39,9 +39,9 @@ int (main) (int argc, char* argv[]) {
         // std::cout << "\nThe program has semantics error, thus compilation stops.\n";
         return 1;
     }
-    codeGen codegen;
-    struct program *program = dynamic_cast<struct program*>(result.node->ptr.get());
-    codegen.analyze(program);
+    // codeGen codegen;
+    // struct program *program = dynamic_cast<struct program*>(result.node->ptr.get());
+    // codegen.analyze(program);
 
     TypeFactory::deleteAll();
     return 0;

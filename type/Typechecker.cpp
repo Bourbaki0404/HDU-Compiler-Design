@@ -211,7 +211,7 @@ analyzeInfo TypeChecker::analyze(binary_expr* node) {
         analyzeCompare(node);
     }
     if(node->op == "==" || node->op == "!=") {
-
+        analyzeEq(node);
     }
     if(node->op == "<=" || node->op == ">=") {
 
