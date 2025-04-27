@@ -41,7 +41,8 @@
 > 5. Cornell - Advanced Compiler: https://www.cs.cornell.edu/courses/cs6120/2025sp/
 
 
-
 - BackEnd
-> 1. RISC-V BackEnd: https://speakerdeck.com/asb/llvm-backend-development-by-example-risc-v?slide=8</br>
-> 2. SelectionDAG: https://www.youtube.com/watch?v=nNQ6AF6i5FI </br>
+> 1. RISC-V BackEnd Slide: https://speakerdeck.com/asb/llvm-backend-development-by-example-risc-v?slide=8</br>
+Video: https://www.youtube.com/watch?v=AFaIP-dF-RA
+> 3. SelectionDAG Video: https://www.youtube.com/watch?v=nNQ6AF6i5FI </br>
+> 4. LLVM Backend: https://sourcecodeartisan.com/2020/11/17/llvm-backend-4.html

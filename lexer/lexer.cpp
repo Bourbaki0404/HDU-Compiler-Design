@@ -175,10 +175,12 @@ std::string token_serialize(const token& token) {
 }
 
 
-std::vector<token> tokenize(const std::string &code) {
+lexInfo tokenize(const std::string &code) {
     size_t row = 1, col = 1, i = 0;
     std::vector<token> tokens;
-    
+
+    std::vector<std::string> rows; // for debugging purpose
+    size_t row_begin = 0; // record the position of the beginning of the row
     while(i != code.size()) {
         char cur = code[i];
         if(code.substr(i, 2) == "/*") {
@@ -189,7 +191,9 @@ std::vector<token> tokenize(const std::string &code) {
             i++;
             col++;
         } else if(cur == '\n') {
+            rows.push_back(code.substr(row_begin, i - row_begin + 1));
             i++;
+            row_begin = i;
             row++;
             col = 1;
         } else if(isalpha(cur) || cur == '_'){
@@ -227,7 +231,10 @@ std::vector<token> tokenize(const std::string &code) {
             i++;
         }
     }
-    return tokens;
+    return lexInfo{
+        .tokens = tokens,
+        .rows = rows
+    };
 }
 
 void printTokens(const std::vector<token> &tokens) {

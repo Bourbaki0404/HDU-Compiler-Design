@@ -9,12 +9,22 @@ void TypeChecker::TypeError(node *ptr, const std::string &str) {
     if(ptr->error_msg == "") {
         ptr->error_msg = color::red + std::string(" error: ") + color::reset + str;
         std::stringstream ss;
+        if(ptr->location.first - 1 < source.size()) {
+            ss  << "\n"
+                << source[ptr->location.first - 1] // \n is already in the row
+                << std::string(ptr->location.second - 1, ' ') + color::green << "^" << color::reset;
+        } else { //reporting errors
+            std::cout << "TypeError Fault! The location is illegal\n";
+            exit(1);
+        }
+        const auto &postfix = ss.str();
+        ss.str("");
         ss  << color::bold_black
             <<  ":"  
             <<  ptr->location.first << ":"
             <<  ptr->location.second << ":"
             <<  color::reset;
-        errorMessages.push_back(ss.str() + ptr->error_msg);
+        errorMessages.push_back(ss.str() + ptr->error_msg + postfix);
     }
 }
 

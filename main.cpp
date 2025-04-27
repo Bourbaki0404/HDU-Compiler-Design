@@ -9,8 +9,8 @@
 
 int (main) (int argc, char* argv[]) {
     assert(argc == 2);
-    const std::vector<token> &tokens = tokenize(readSrc(std::string(argv[1])));
-
+    auto info = tokenize(readSrc(std::string(argv[1]))); // after initializing tc with rows, it will become no longer valid.
+    const auto &tokens = info.tokens;
     printTokens(tokens);
 //     // printAllRules(parserRules);
 #ifdef GenerateParser
@@ -32,6 +32,7 @@ int (main) (int argc, char* argv[]) {
     result.node->ptr->printAST("", "");
 
     TypeChecker *ptr = new TypeChecker;
+    ptr->setSource(std::move(info.rows));// move assignment
     ptr->analyze(dynamic_cast<program*>(result.node->ptr.get()));
     result.node->ptr.get()->printAST("", "");
     ptr->dumpErrors(std::string(argv[1]));
@@ -39,9 +40,9 @@ int (main) (int argc, char* argv[]) {
         // std::cout << "\nThe program has semantics error, thus compilation stops.\n";
         return 1;
     }
-    codeGen codegen;
-    struct program *program = dynamic_cast<struct program*>(result.node->ptr.get());
-    codegen.analyze(program);
+    // codeGen codegen;
+    // struct program *program = dynamic_cast<struct program*>(result.node->ptr.get());
+    // codegen.analyze(program);
 
     TypeFactory::deleteAll();
     return 0;

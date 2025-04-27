@@ -63,6 +63,10 @@ struct TypeChecker {
         defaultResult = value;
     }
 
+    void setSource(std::vector<std::string> &&rows) {
+        this->source = std::move(rows);
+    }
+
     analyzeInfo analyze(class_def* node) ;
 
     // Expression nodes
@@ -133,6 +137,7 @@ private:
     std::vector<size_t> controlFlowStack;
     size_t loopDepth;
     std::vector<std::string> errorMessages;
+    std::vector<std::string> source;
 };
 
 

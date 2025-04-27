@@ -3,10 +3,15 @@
 
 #include "lexer/token.hpp"
 
+struct lexInfo
+{
+    std::vector<token> tokens;
+    std::vector<std::string> rows;
+};
 
 
 std::string token_serialize(const token &token);
-std::vector<token> tokenize(const std::string &code);
+lexInfo tokenize(const std::string &code);
 std::string readSrc(std::string path);
 void printTokens(const std::vector<token> &tokens);
 

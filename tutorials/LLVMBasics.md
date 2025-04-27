@@ -1,0 +1,36 @@
+# LLVM Basics
+
+### Build the Project
+
+- I'dk, but it appears on my ubuntu22.04 without reason.
+
+### Configure the vscode
+
+- Ctrl+Shift+P in vscode.
+- Paste in the following json text.
+```json
+{
+    "configurations": [
+      {
+        "name": "Linux",
+        "includePath": [
+          "${workspaceFolder}/**",
+          "/usr/lib/llvm-14/include",
+          "/usr/include/c++/11",
+          "/usr/include/x86_64-linux-gnu/c++/11"
+        ],
+        "defines": [
+          "_GNU_SOURCE",
+          "__STDC_CONSTANT_MACROS",
+          "__STDC_FORMAT_MACROS",
+          "__STDC_LIMIT_MACROS"
+        ],
+        "compilerPath": "/usr/bin/clang++",
+        "cStandard": "c11",
+        "cppStandard": "c++14",
+        "intelliSenseMode": "linux-clang-x64"
+      }
+    ],
+    "version": 4
+  }
+```

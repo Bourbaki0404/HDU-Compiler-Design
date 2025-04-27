@@ -39,7 +39,7 @@ int foo() {
     while(a[1][2]) {
         int x = 2;
     }
-    int c = *b + 1;
+    int c = b + 1;
     return **a;
 }
 
