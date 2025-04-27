@@ -24,9 +24,14 @@
 > 6. More syntatic support like typedef, lambda expression or namespace.
 
 ### References:
+- Overview
+> DragonBook chapter 1, 2, 3, 6 :https://www3.nd.edu/~dthain/compilerbook/compilerbook.pdf
+
 - FrontEnd
 > 1. Write a C compiler: https://tutorials.ophion.feralhosting.com/Library/Ebooks/No%20Starch%20Press/Writing%20a%20C%20Compiler%20-%20Build%20a%20Real%20Programming%20Language%20from%20Scratch/Writing%20a%20C%20Compiler%20-%20Build%20a%20Real%20Programming%20Language%20from%20Scratch.pdf
 > 2. Parser: http://staff.ustc.edu.cn/~yuzhang/compiler/2021f/lectures/03-parsing.pdf
+> 3. AST: https://github.com/llvm/llvm-project/tree/main/clang/include/clang/AST
+> 4. TypeChecker: https://www.bilibili.com/video/BV1sgH3eHEtS?spm_id_from=333.788.videopod.episodes&vd_source=13bf89d4f930b74c0c5255c55db8f768&p=2
 
 - MiddleEnd
 > 1. How to write a LLVM Pass: https://github.com/banach-space/llvm-tutor?tab=readme-ov-file#helloworld-your-first-pass 
