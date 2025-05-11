@@ -45,4 +45,6 @@
 > 1. RISC-V BackEnd Slide: https://speakerdeck.com/asb/llvm-backend-development-by-example-risc-v?slide=8</br>
 Video: https://www.youtube.com/watch?v=AFaIP-dF-RA
 > 3. SelectionDAG Video: https://www.youtube.com/watch?v=nNQ6AF6i5FI </br>
+https://myhsu.xyz/llvm-codegen-legalization/
 > 4. LLVM Backend: https://sourcecodeartisan.com/2020/11/17/llvm-backend-4.html
+> 5. LLVM Note: https://blog.csdn.net/wuhui_gdnt?type=blog

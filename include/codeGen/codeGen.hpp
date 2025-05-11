@@ -113,7 +113,7 @@ private:
     */
     void terminateBlockWithBr(llvm::BasicBlock *target, llvm::IRBuilder<>* builder);
 
-    llvm::Type *to_llvm_type(Type *ptr);
+    llvm::Type *to_llvm_type(struct Type *ptr);
 
     std::unique_ptr<llvm::LLVMContext> ctx;
     std::unique_ptr<llvm::IRBuilder<>> builder;

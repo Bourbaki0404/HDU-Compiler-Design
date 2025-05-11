@@ -340,8 +340,8 @@ codeGenInfo codeGen::analyze(while_stmt* node) {
     terminateBlockWithBr(curLoopStart, builder.get());
     builder->SetInsertPoint(curLoopStart);
     auto cond = node->cond->dispatch(this).value;
-
     llvm::BasicBlock *LoopBody = llvm::BasicBlock::Create(*ctx, "loop_body", currentFn);
+
     curLoopEnd = llvm::BasicBlock::Create(*ctx, "loop_end", currentFn);
     if(node->cond->inferred_type->kind == TypeKind::Int) {
         cond = builder->CreateICmpNE(cond, builder->getInt32(0));
@@ -454,7 +454,6 @@ codeGenInfo codeGen::analyze(func_def* node) {
     for(size_t i = 0; i < node->body.size(); i++) {
         node->body[i]->dispatch(this);
     }
-
     auto value = builder->CreateAdd(builder->getInt32(1), builder->getInt32(2));
 
     delete cur;
@@ -547,7 +546,6 @@ void codeGen::moduleInit() {
     global = new environment();
     cur = global;
 }
-
 void codeGen::terminateBlockWithBr(llvm::BasicBlock *target, llvm::IRBuilder<>* builder) {
     if(builder->GetInsertBlock()->getTerminator() == nullptr) {
         builder->CreateBr(target);

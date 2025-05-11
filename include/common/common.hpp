@@ -4,8 +4,10 @@
 #include<iostream>
 #include<fstream>
 #include<vector>
+#include<list>
 #include<map>
 #include<unordered_map>
+#include<unordered_set>
 #include<set>
 #include<queue>
 #include<algorithm>
@@ -14,6 +16,7 @@
 #include <sstream>
 #include <cassert>
 #include <functional>
+#include <ostream>
 #include <sstream>
 
 namespace color {

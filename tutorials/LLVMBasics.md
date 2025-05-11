@@ -2,7 +2,15 @@
 
 ### Build the Project
 
-- I'dk, but it appears on my ubuntu22.04 without reason.
+> See https://llvm.org/docs/CMake.html#quick-start for building the llvm-project with cmake.
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Debug path/to/llvm/source/root
+cmake --build . -- -j8
+cmake --build . --target install
+```
+
+- Note: The total memory (main memory + swap) should be larger than 45GB or your computer will freeze.
 
 ### Configure the vscode
 
@@ -15,7 +23,7 @@
         "name": "Linux",
         "includePath": [
           "${workspaceFolder}/**",
-          "/usr/lib/llvm-14/include",
+          "/usr/lib/llvm-14/include", //the path to the llvm
           "/usr/include/c++/11",
           "/usr/include/x86_64-linux-gnu/c++/11"
         ],
