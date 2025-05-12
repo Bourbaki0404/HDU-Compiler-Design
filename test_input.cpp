@@ -34,8 +34,9 @@
 
 
 int div(int a, int b){
-  while(a == 2) {
-    return a;
+  int c[3] = {1, 2, 3};
+  while(c[1] > 1) {
+    return c[a];
   }
   return b;
 }

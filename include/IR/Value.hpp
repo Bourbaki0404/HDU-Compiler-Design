@@ -108,13 +108,13 @@ struct Value {
     const unsigned subclassID;
 
     void addUse(Use* u) {   
-        uses.push_back(u);
+        useList.push_back(u);
     }
     // void replaceAllUsesWith (Value *V) {  
     // }
 
     // tracks who uses this value
-    dlist<Use> uses;
+    dlist<Use> useList;
 };
 
 

@@ -75,6 +75,10 @@ struct IntegerType : public Type {
 
 };
 
+struct VoidType : public Type {
+    bool equals(struct Type *ty);
+};
+
 struct PointerType : public Type {
     bool equals(struct Type *ty);
 };
@@ -110,6 +114,9 @@ struct TypeFactory {
     static Type *getInt1Ty() {
         Type *ty = new IntegerType(1);
         return ty;
+    }
+    static Type *getVoidTy() {
+        return new Void
     }
 };
 

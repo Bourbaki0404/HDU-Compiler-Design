@@ -2,8 +2,10 @@
 #include "IR/basicBlock.hpp"
 #include "IR/out_stream.hpp"
 #include "IR/Value.hpp"
+#include "IR/instruction.hpp"
 #include "IR/out_stream.hpp"
 #include "asmWriter.hpp"
+#include "IR/Cast.hpp"
 
 namespace IR{
 
@@ -252,7 +254,7 @@ void AsmWriter::printInstruction(Instruction *inst) {
 	Out << inst->getOpcodeName();
 
 	// Print out the compare instruction predicates
-	if (inst->isCmp()) {
+	if (isa<CmpInst>(inst)) {
 		auto CI = static_cast<CmpInst*>(inst);
 		Out << ' ' << CmpInst::getPredicateName(CI->getPredicate());
 	}
@@ -260,14 +262,74 @@ void AsmWriter::printInstruction(Instruction *inst) {
 	// Print out the type of the operands...
 	auto *Operand = inst->getNumOperands() ? inst->getOperand(0) : nullptr;
 
-	if (inst-> && cast<BranchInst>(I).isConditional()) {
-		const BranchInst &BI(cast<BranchInst>(I));
+	if (isa<BranchInst>(inst) && dyn_cast<BranchInst>(inst)->isConditional()) {
+		const auto BI = dyn_cast<BranchInst>(inst);
 		Out << ' ';
-		writeOperand(BI.getCondition(), true);
+		writeOperand(BI->getCondition(), true);
 		Out << ", ";
-		writeOperand(BI.getSuccessor(0), true);
+		writeOperand(BI->getSuccessor(0), true);
 		Out << ", ";
-		writeOperand(BI.getSuccessor(1), true);
+		writeOperand(BI->getSuccessor(1), true);
+	} else if (const AllocaInst *AI = dyn_cast<AllocaInst>(inst)) {
+		Out << ' ';
+		TypePrinter::print(AI->getAllocatedType());
+
+		// Explicitly write the array size if the code is broken, if it's an array
+		// allocation, or if the type is not canonical for scalar allocations.  The
+		// latter case prevents the type from mutating when round-tripping through
+		// assembly.
+		// if (!AI->getArraySize() || AI->isArrayAllocation() ||
+		// 	!AI->getArraySize()->getType()->isIntegerTy(32)) {
+		// Out << ", ";
+		// writeOperand(AI->getArraySize(), true);
+		// }
+		if (AI->isAligned()) {
+			Out << ", align " << AI->getAlign();
+		}
+	} else if (isa<ReturnInst>(I) && !Operand) {
+    	Out << " void"; 
+	} else if (Operand) {   // Print the normal way.
+		if (const auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
+			Out << ' ';
+			TypePrinter::print(GEP->getSourceElementType());
+			Out << ',';
+		} else if (const auto *LI = dyn_cast<LoadInst>(&I)) {
+			Out << ' ';
+			TypePrinter::print(LI->getType());
+			Out << ',';
+		}
+
+		// PrintAllTypes - Instructions who have operands of all the same type
+		// omit the type from all but the first operand.  If the instruction has
+		// different type operands (for example br), then they are all printed.
+		bool PrintAllTypes = false;
+		Type *TheType = Operand->getType();
+
+		// Select, Store and ShuffleVector always print all types.
+		if (isa<StoreInst>(inst) || isa<ReturnInst>(inst)) {
+			PrintAllTypes = true;
+		} else {
+			for (unsigned i = 1, E = inst->getNumOperands(); i != E; ++i) {
+				Operand = inst->getOperand(i);
+				// note that Operand shouldn't be null, but the test helps make dump()
+				// more tolerant of malformed IR
+				if (Operand && Operand->getType() != TheType) {
+					PrintAllTypes = true;    // We have differing types!  Print them all!
+					break;
+				}
+			}
+		}
+
+		if (!PrintAllTypes) {
+			Out << ' ';
+			TypePrinter::print(TheType);
+		}
+
+		Out << ' ';
+		for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i) {
+			if (i) Out << ", ";
+			writeOperand(I.getOperand(i), PrintAllTypes);
+		}
 	}
 }
 

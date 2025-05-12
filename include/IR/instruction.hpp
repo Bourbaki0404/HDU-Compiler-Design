@@ -57,11 +57,14 @@ struct Instruction : public Value, public dlist_node<Instruction> {
         COMPARISON_END,
 
         
-
         // terminator operations
         TERMINATOR_START,
             RET, BR,
         TERMINATOR_END,
+
+        OTHER_START,
+            PHI, CALL,
+        OTHER_END,
 
         END_OF_ALL,
     };
@@ -69,6 +72,7 @@ struct Instruction : public Value, public dlist_node<Instruction> {
     : Value(ty, InstructionVal + opcode) {
         this->setType(ty);
         this->numOperands = numOps;
+        this->uses.resize(numOps);
     }
 
     size_t getOpcode() const { return subclassID - InstructionVal; }
@@ -76,7 +80,7 @@ struct Instruction : public Value, public dlist_node<Instruction> {
     std::string getOpcodeName() const { return getOpcodeName(getOpcode()); }
     void setOperand(Value* v, size_t i);
     Value *getOperand(size_t i);
-    size_t getNumOperands() const { return useList.size(); }
+    size_t getNumOperands() const { return numOperands; }
         // Non-copyable
     Instruction(const Instruction&) = delete;
     Instruction& operator=(const Instruction&) = delete;
@@ -138,7 +142,7 @@ struct Instruction : public Value, public dlist_node<Instruction> {
     }
 
 
-    std::vector<Use*> useList;
+    std::vector<Use*> uses;
     size_t numOperands;
     BasicBlock *parent; 
 };
@@ -242,19 +246,108 @@ struct FCmpInst : public CmpInst {
     FCmpInst(Type* ty, Predicate pre, Value* lhs, Value* rhs, const std::string& name = "");
 };
 
+class CastInst : public Instruction {
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    static bool classof(const Instruction *I) {
+        return I->isCast();
+    }
+    static bool classof(Value *V) {
+        return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
+    }
+};
+
 // Memory
 struct AllocaInst : public Instruction {
+    Type *allocatedTy;
     AllocaInst(Type* ty, const std::string& name = "");
+    Type *getAllocatedType() const { return allocatedTy; }
+    static bool classof(const Instruction *I) {
+        return (I->getOpcode() == Instruction::ALLOCA);
+    }
+    static bool classof(Value *V) {
+        return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
+    }
+    bool isAligned() const { return isAligned; }
+    size_t getAlign() const { return alignment; }
+
+
+    bool isAligned;
+    size_t alignment;
 };
 
 struct LoadInst : public Instruction {
     LoadInst(Type* ty, Value* ptr, const std::string& name = "");
+      // Methods for support type inquiry through isa, cast, and dyn_cast:
+    static bool classof(const Instruction *I) {
+        return I->getOpcode() == Instruction::LOAD;
+    }
+    static bool classof(Value *V) {
+        return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
+    }
 };
 
 struct StoreInst : public Instruction {
     StoreInst(Value* val, Value* ptr);
+    static bool classof(const Instruction *I) {
+        return I->getOpcode() == Instruction::STORE;
+    }
+    static bool classof(Value *V) {
+        return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
+    }
 };
 
+/// Conditional or Unconditional Branch instruction.
+///
+struct BranchInst : public Instruction {
+    BranchInst::BranchInst(BasicBlock *IfTrue);
+    BranchInst::BranchInst(BasicBlock *IfTrue, BasicBlock *IfFalse, Value *Cond);
+    bool isConditional()   const { return getNumOperands() == 3; }
+    static bool classof(const Instruction *I) {
+        return (I->getOpcode() == Instruction::BR);
+    }
+    static bool classof(Value *V) {
+        return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
+    }
+    Value *getCondition() {
+        if(isConditional()) return getOperand(2);
+        else return nullptr;
+    }
+    BasicBlock *getSuccessor(size_t s) {
+        if(isConditional()) {
+            if(s > 1) return nullptr;
+            else return dyn_cast<BasicBlock>(getOperand(s));
+        } else {
+            if(s > 0) return nullptr;
+            else return dyn_cast<BasicBlock>(getOperand(0));
+        }
+    }
+};
+
+struct GetElementPtrInst : public Instruction {
+  Type *SourceElementType;
+  Type *ResultElementType;
+};
+
+/// Return a value (possibly void), from a function.  Execution
+/// does not continue in this function any longer.
+///
+struct ReturnInst : public Instruction {
+    ReturnInst(Value *retVal);
+    ReturnInst();
+
+    /// Convenience accessor. Returns null if there is no return value.
+    Value *getReturnValue() {
+        return getNumOperands() != 0 ? getOperand(0) : nullptr;
+    }
+
+
+    static bool classof(const Instruction *I) {
+        return (I->getOpcode() == Instruction::RET);
+    }
+    static bool classof(Value *V) {
+        return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
+    }
+};
 
 
 }

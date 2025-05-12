@@ -1,5 +1,5 @@
 #include "IR/instruction.hpp"
-#include "instruction.hpp"
+#include "IR/basicBlock.hpp"
 
 namespace IR{
 
@@ -9,7 +9,7 @@ void Instruction::setOperand(Value* v, size_t i) {
         exit(1);
     } else {
         auto use = new Use(v, this);
-        useList[i] = use;
+        uses[i] = use;
         v->addUse(use);
     }
 }
@@ -19,7 +19,7 @@ Value *Instruction::getOperand(size_t i) {
         std::cout << "getOperand Fail\n";
         exit(1);
     } else {
-        return useList[i]->val;
+        return uses[i]->val;
     }
 }
 
@@ -85,7 +85,6 @@ std::string Instruction::getOpcodeName(size_t OpCode) {
 
 BinaryOp::BinaryOp(BinaryOpKind kind, Type* ty, Value* lhs, Value* rhs, const std::string& name)
 : Instruction(ty, kind, 2) {
-    useList.resize(2);
     this->op_kind = kind;
     if(!ty || !lhs || !rhs) {
         std::cout << "BinaryOp Fail\n";
@@ -135,5 +134,31 @@ std::string CmpInst::getPredicateName(Predicate Pred) {
         case ICmpInst::ICMP_ULE:   return "ule";
     }
 }
+
+
+BranchInst::BranchInst(BasicBlock *IfTrue)
+    : Instruction(TypeFactory::getVoidTy(), BR, 1) {
+    if(!IfTrue) {
+        std::cout << "BranchInst Fail.\n";
+    }
+    setOperand(IfTrue, 0);
+}
+
+BranchInst::BranchInst(BasicBlock *IfTrue, BasicBlock *IfFalse, Value *Cond)
+    : Instruction(TypeFactory::getVoidTy(), BR, 3) {
+  // Assign in order of operand index to make use-list order predictable.
+    this->setOperand(IfTrue, 0);
+    this->setOperand(IfFalse, 1);
+    this->setOperand(Cond, 2);
+}
+
+ReturnInst::ReturnInst(Value *retVal)
+: Instruction(TypeFactory::getVoidTy(), RET, 1) {
+    this->setOperand(retVal, 0);
+}
+
+ReturnInst::ReturnInst()
+: Instruction(TypeFactory::getVoidTy(), RET, 0) {}
+
 
 }

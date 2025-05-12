@@ -9,7 +9,7 @@ namespace IR{
 
 struct Function;
 
-struct BasicBlock : public Value{
+struct BasicBlock : public Value {
 	BasicBlock() { parent = nullptr; }
 	BasicBlock(const BasicBlock &) = delete;
 	BasicBlock &operator=(const BasicBlock &) = delete;
