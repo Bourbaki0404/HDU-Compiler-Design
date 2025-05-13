@@ -21,24 +21,28 @@ define dso_local noundef i32 @_Z3divii(i32 noundef %0, i32 noundef %1) #0 {
   %9 = getelementptr inbounds [3 x i32], [3 x i32]* %6, i64 0, i64 1
   %10 = load i32, i32* %9, align 4
   %11 = icmp sgt i32 %10, 1
-  br i1 %11, label %12, label %17
+  br i1 %11, label %12, label %18
 
 12:                                               ; preds = %8
   %13 = load i32, i32* %4, align 4
-  %14 = sext i32 %13 to i64
-  %15 = getelementptr inbounds [3 x i32], [3 x i32]* %6, i64 0, i64 %14
-  %16 = load i32, i32* %15, align 4
-  store i32 %16, i32* %3, align 4
-  br label %19
+  %14 = add nsw i32 2, %13
+  %15 = sext i32 %14 to i64
+  %16 = getelementptr inbounds [3 x i32], [3 x i32]* %6, i64 0, i64 %15
+  %17 = load i32, i32* %16, align 4
+  store i32 %17, i32* %3, align 4
+  br label %23
 
-17:                                               ; preds = %8
-  %18 = load i32, i32* %5, align 4
-  store i32 %18, i32* %3, align 4
-  br label %19
+18:                                               ; preds = %8
+  %19 = getelementptr inbounds [3 x i32], [3 x i32]* %6, i64 0, i64 1
+  %20 = load i32, i32* %19, align 4
+  %21 = add nsw i32 1, %20
+  %22 = sub nsw i32 %21, 2
+  store i32 %22, i32* %3, align 4
+  br label %23
 
-19:                                               ; preds = %17, %12
-  %20 = load i32, i32* %3, align 4
-  ret i32 %20
+23:                                               ; preds = %18, %12
+  %24 = load i32, i32* %3, align 4
+  ret i32 %24
 }
 
 ; Function Attrs: argmemonly nofree nounwind willreturn

@@ -16,10 +16,18 @@ struct Use : public dlist_node<Use>{
 };
 
 struct Value {
-    Value::Value(Type *ty, unsigned scid)
+    Value(Type *ty, unsigned scid)
     : type(ty), name(), subclassID(scid) {
 
     }
+
+    /// Change the name of the value.
+    ///
+    /// Choose a new unique name if the provided name is taken.
+    ///
+    /// \param Name The new name; or "" if the value's name should be removed.
+    void setName(const std::string &Name) {}
+
     std::string getName() const {
         return name;
     }
@@ -72,7 +80,7 @@ struct Value {
         ConstantAggregateLastVal = ConstantVectorVal, 
 
         // Values
-        ArgumentVal,
+        ArgumentVal = ConstantLastVal + 1,
         BasicBlockVal,
 
         // Metadata and InlineAsm
@@ -90,7 +98,7 @@ struct Value {
         // don't add new values here!
     };
 
-    /// Return an ID for each concrete type of this object, used as RTTI.
+    /// Return an ID for each concrete type of this object, used for RTTI.
     ///
     /// This is used to implement the classof checks. Also,
     /// note that for instructions, the Instruction's opcode is added to

@@ -1,6 +1,6 @@
 #pragma once
 #include "IR/Function.hpp"
-
+#include "IR/instruction.hpp"
 namespace IR {
 
 /// This provides the default implementation of the IRBuilder
@@ -66,64 +66,64 @@ struct IRBuilder {
 
     // Integer arithmetic
     Value* CreateAdd(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::ADD, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::ADD, ty, lhs, rhs, name));
     }
     Value* CreateSub(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::SUB, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::SUB, ty, lhs, rhs, name));
     }
     Value* CreateMul(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::MUL, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::MUL, ty, lhs, rhs, name));
     }
     Value* CreateUDiv(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::UDIV, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::UDIV, ty, lhs, rhs, name));
     }
     Value* CreateSDiv(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::SDIV, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::SDIV, ty, lhs, rhs, name));
     }
     Value* CreateURem(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::UREM, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::UREM, ty, lhs, rhs, name));
     }
     Value* CreateSRem(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::SREM, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::SREM, ty, lhs, rhs, name));
     }
 
 
 
     // Floating-point arithmetic
     Value* CreateFAdd(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::FADD, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::FADD, ty, lhs, rhs, name));
     }
     Value* CreateFSub(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::FSUB, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::FSUB, ty, lhs, rhs, name));
     }
     Value* CreateFMul(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::FMUL, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::FMUL, ty, lhs, rhs, name));
     }
     Value* CreateFDiv(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::FDIV, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::FDIV, ty, lhs, rhs, name));
     }
     Value* CreateFRem(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::FREM, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::FREM, ty, lhs, rhs, name));
     }
 
     // Logic 
     Value* CreateShl(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::SHL, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::SHL, ty, lhs, rhs, name));
     }
     Value* CreateLShr(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::LSHR, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::LSHR, ty, lhs, rhs, name));
     }
     Value* CreateAShr(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::ASHR, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::ASHR, ty, lhs, rhs, name));
     }
     Value* CreateAnd(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::AND, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::AND, ty, lhs, rhs, name));
     }
     Value* CreateOr(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::OR, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::OR, ty, lhs, rhs, name));
     }
     Value* CreateXor(Type* ty, Value* lhs, Value* rhs, const std::string& name = "") {
-        return Insert(new BinaryOp(BinaryOpKind::XOR, ty, lhs, rhs, name));
+        return Insert(new BinaryOp(BinaryOp::BinaryOpKind::XOR, ty, lhs, rhs, name));
     }
 
 

@@ -1,5 +1,4 @@
-#ifndef __COMMON_H
-#define __COMMON_H
+#pragma once
 
 #include<iostream>
 #include<fstream>
@@ -39,5 +38,3 @@ namespace color {
     inline constexpr const char* bold_white   = "\033[1;37m";
 };
 
-
-#endif

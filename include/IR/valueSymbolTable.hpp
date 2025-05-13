@@ -12,7 +12,7 @@ struct GlobalIFunc;
 struct GlobalVariable;
 struct Instruction;
 
-struct valueSymbolTable {
+struct ValueSymbolTable {
     /// A mapping of names to values.
     using ValueMap = std::unordered_map<std::string, Value*>;
 
@@ -39,6 +39,15 @@ struct valueSymbolTable {
         return nullptr;
     }
 
+    std::string makeUniqueName(Value *V, const std::string &oldname);
+
+    // Try to insert a named value into the table. Value might be renamed automatically to avoid conflict.
+    void reinsertValue(Value *V);
+
+    void removeValueName(const std::string &Name) {
+        vmap.erase(Name);
+    }
+
     bool exist(const std::string &Name) const {
         return vmap.find(Name) != vmap.end();
     }
@@ -55,13 +64,13 @@ struct valueSymbolTable {
     /// content of the symbol table while debugging.
     /// Print out symbol table on stderr
     void dump() {
-        for (auto &I : *this) {
-            I.second->dump();
-        }
+        // for (auto &I : *this) {
+        //     I.second->dump();
+        // }
     }
 
 
-
+    unsigned LastUnique = 0;
 
 
 

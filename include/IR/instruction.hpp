@@ -6,6 +6,8 @@
 namespace IR{
 
 struct BasicBlock;
+struct IRBuilder;
+struct Module;
 
 enum InstKind {
     BINOP, UNAOP,
@@ -73,17 +75,29 @@ struct Instruction : public Value, public dlist_node<Instruction> {
         this->setType(ty);
         this->numOperands = numOps;
         this->uses.resize(numOps);
+        this->parent = nullptr;
     }
-
+    inline const BasicBlock *getParent() const { return parent; }
+    /// The setParent() should only be called by the SymbolTableListTraits
+    inline       void        setParent(BasicBlock *BB)  { parent = BB; }
+    inline       BasicBlock *getParent()       { return parent; }
+    inline const Module     *getModule() const ;
+    inline       Module     *getModule()       ;
     size_t getOpcode() const { return subclassID - InstructionVal; }
     static std::string getOpcodeName(size_t OpCode);
     std::string getOpcodeName() const { return getOpcodeName(getOpcode()); }
     void setOperand(Value* v, size_t i);
-    Value *getOperand(size_t i);
+    Value *getOperand(size_t i) const;
     size_t getNumOperands() const { return numOperands; }
         // Non-copyable
     Instruction(const Instruction&) = delete;
     Instruction& operator=(const Instruction&) = delete;
+
+
+
+    /// This method unlinks 'this' from the containing basic block, but does not
+    /// delete it.
+    void removeFromParent();
 
     bool isTerminator() const { return isTerminator(getOpcode()); }
     bool isUnaryOp() const { return isUnaryOp(getOpcode()); }
@@ -267,11 +281,11 @@ struct AllocaInst : public Instruction {
     static bool classof(Value *V) {
         return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
     }
-    bool isAligned() const { return isAligned; }
+    bool isAligned() const { return _isAligned; }
     size_t getAlign() const { return alignment; }
 
 
-    bool isAligned;
+    bool _isAligned;
     size_t alignment;
 };
 
@@ -299,8 +313,8 @@ struct StoreInst : public Instruction {
 /// Conditional or Unconditional Branch instruction.
 ///
 struct BranchInst : public Instruction {
-    BranchInst::BranchInst(BasicBlock *IfTrue);
-    BranchInst::BranchInst(BasicBlock *IfTrue, BasicBlock *IfFalse, Value *Cond);
+    BranchInst(BasicBlock *IfTrue);
+    BranchInst(BasicBlock *IfTrue, BasicBlock *IfFalse, Value *Cond);
     bool isConditional()   const { return getNumOperands() == 3; }
     static bool classof(const Instruction *I) {
         return (I->getOpcode() == Instruction::BR);
@@ -323,10 +337,27 @@ struct BranchInst : public Instruction {
     }
 };
 
-struct GetElementPtrInst : public Instruction {
-  Type *SourceElementType;
-  Type *ResultElementType;
-};
+// struct GetElementPtrInst : public Instruction {
+
+//     Type *SourceElementType;
+//     Type *ResultElementType;
+//     // static Type *getGEPReturnType(Type *ElTy, Value *Ptr,
+//     //                                 const std::vector<Value *> &IdxList) {
+//     //     PointerType *OrigPtrTy = cast<PointerType>(Ptr->getType()->getScalarType());
+//     //     Type *ResultElemTy = checkGEPType(getIndexedType(ElTy, IdxList));
+//     //     Type *PtrTy = OrigPtrTy->isOpaque()
+//     //     ? PointerType::get(OrigPtrTy->getContext(), AddrSpace)
+//     //     : PointerType::get(ResultElemTy, AddrSpace);
+//     //     // Vector GEP
+//     //     for (Value *Index : IdxList)
+//     //     if (auto *IndexVTy = dyn_cast<VectorType>(Index->getType())) {
+//     //         ElementCount EltCount = IndexVTy->getElementCount();
+//     //         return VectorType::get(PtrTy, EltCount);
+//     //     }
+//     //     // Scalar GEP
+//     //     return PtrTy;
+//     // }
+// };
 
 /// Return a value (possibly void), from a function.  Execution
 /// does not continue in this function any longer.

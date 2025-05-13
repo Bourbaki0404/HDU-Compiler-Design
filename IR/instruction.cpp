@@ -1,10 +1,22 @@
 #include "IR/instruction.hpp"
 #include "IR/basicBlock.hpp"
+#include "IR/Value.hpp"
+#include "IR/utils.hpp"
 
 namespace IR{
 
+const Module *Instruction::getModule() const {
+    __assert__(getParent(), "Instruction getModule fail. basic block is not set");
+    return  getParent()->getModule();
+}
+
+Module *Instruction::getModule() {
+    __assert__(getParent(), "Instruction getModule fail. basic block is not set");
+    return  getParent()->getModule();
+}
+
 void Instruction::setOperand(Value* v, size_t i) {
-    if(i >= useList.size()) {
+    if(i >= getNumOperands()) {
         std::cout << "setOperand Fail\n";
         exit(1);
     } else {
@@ -14,13 +26,17 @@ void Instruction::setOperand(Value* v, size_t i) {
     }
 }
 
-Value *Instruction::getOperand(size_t i) {
-    if(i >= useList.size()) {
+Value *Instruction::getOperand(size_t i) const {
+    if(i >= getNumOperands()) {
         std::cout << "getOperand Fail\n";
         exit(1);
     } else {
         return uses[i]->val;
     }
+}
+
+void Instruction::removeFromParent() {
+    getParent()->getInstList().remove(getIterator());
 }
 
 std::string Instruction::getOpcodeName(size_t OpCode) {

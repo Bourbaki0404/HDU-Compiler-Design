@@ -2,27 +2,44 @@
 #include "IR/basicBlock.hpp"
 #include "IR/out_stream.hpp"
 #include "IR/Value.hpp"
+#include "IR/Function.hpp"
 #include "IR/instruction.hpp"
 #include "IR/out_stream.hpp"
-#include "asmWriter.hpp"
+#include "IR/argument.hpp"
 #include "IR/Cast.hpp"
+#include "IR/Type.hpp"
+#include "IR/Globals.hpp"
+#include "IR/Value.hpp"
 
 namespace IR{
 
-void TypePrinter::print(Type *Ty) {
+// Helper function for constructing slotTracker
+SlotTracker *createSlotTracker(const Value *V);
+
+
+void BasicBlock::print() {
+	__assert__(this, "BasicBlock print fail. null pointer");
+	__assert__(this->getParent(), "BasicBlock print fail. Function not set");
+	__assert__(this->getModule(), "BasicBlock print fail. Module not set");
+	SlotTracker *S = createSlotTracker(this);
+	AsmWriter writer(this->getModule(), S);
+	writer.printBasicBlock(this);
+}
+
+void TypePrinting::print(Type *Ty) {
     switch (Ty->kind) {
-        case typeKind::Integer: {
+        case Type::typeKind::Integer: {
             auto *IntTy = static_cast<IntegerType*>(Ty);
             Out << "i" << IntTy->getBitWidth();
             return;
         }
 
-        case typeKind::Float: {
+        case Type::typeKind::Float: {
             Out << "float";
             return;
         }
 
-        case typeKind::Pointer: {
+        case Type::typeKind::Pointer: {
             auto *PTy = static_cast<PointerType*>(Ty);
             // Assume we have a method to get pointee type
             Type *elementType = reinterpret_cast<Type*>(PTy->getSubclassData());
@@ -31,7 +48,7 @@ void TypePrinter::print(Type *Ty) {
             return;
         }
 
-        case typeKind::Array: {
+        case Type::typeKind::Array: {
             auto *ATy = static_cast<ArrayType*>(Ty);
             // Assume ArrayType has getElementType() and getNumElements()
             Type *elementType = reinterpret_cast<Type*>(ATy->getSubclassData());
@@ -42,7 +59,7 @@ void TypePrinter::print(Type *Ty) {
             return;
         }
 
-        case typeKind::Function: {
+        case Type::typeKind::Function: {
             auto *FTy = static_cast<FunctionType*>(Ty);
             // Assume FunctionType has getReturnType() and getParamTypes()
             Type *retTy = reinterpret_cast<Type*>(FTy->getSubclassData());
@@ -65,147 +82,225 @@ void TypePrinter::print(Type *Ty) {
 }
 
 enum PrefixType {
-  GlobalPrefix,
-  ComdatPrefix,
-  LabelPrefix,
-  LocalPrefix,
-  NoPrefix
+	GlobalPrefix,
+	ComdatPrefix,
+	LabelPrefix,
+	LocalPrefix,
+	NoPrefix
 };
 
+inline void SlotTracker::initializeIfNeeded() {
+  if (TheModule) {
+    // processModule();      // Initialize the module-level slot table
+    TheModule = nullptr;
+  }
+
+  if (TheFunction && !FunctionProcessed)
+    processFunction();    // Initialize the function-level slot table
+}
+
+SlotTracker::SlotTracker(const Function *F)
+    : TheFunction(F), TheModule(F->getParent()) {
+		__assert__(F, "SlotTracker Initialization Fail, the function cannot be null.\n");
+	}
+
+SlotTracker::SlotTracker(const Module *M)
+    : TheModule(M) {
+		__assert__(M, "SlotTracker Initialization Fail, the module cannot be null.\n");
+	}
+
+SlotTracker *createSlotTracker(const Value *V) {
+	if (const Argument *FA = dyn_cast<Argument>(V))
+		return new SlotTracker(FA->getParent());
+
+	if (const Instruction *I = dyn_cast<Instruction>(V))
+		if (I->getParent())
+		return new SlotTracker(I->getParent()->getParent());
+
+	if (const BasicBlock *BB = dyn_cast<BasicBlock>(V))
+		return new SlotTracker(BB->getParent());
+
+	if (const GlobalObject *GV = dyn_cast<GlobalObject>(V))
+		return new SlotTracker(GV->getParent());
+
+	if (const Function *Func = dyn_cast<Function>(V))
+		return new SlotTracker(Func);
+
+	return nullptr;
+}
+
+int SlotTracker::getLocalSlot(const Value *V) {
+	__assert__(!isa<Constant>(V), "getLocalSlot fail!, V cannot be Constant.");
+
+	// Load the values into table lazily
+	initializeIfNeeded();
+
+	auto it = fMap.find(V);
+	if(it != fMap.end()) return (*it).second;
+	return -1;
+}
+
+int SlotTracker::getGlobalSlot(const GlobalObject *G) {
+	// __assert__(!G)
+
+	initializeIfNeeded();
+	auto it = mMap.find(G);
+	if(it != mMap.end()) return (*it).second; 
+	return -1;
+}
+
+void SlotTracker::processFunction() {
+	fMap.clear();
+	fNext = 0;
+	if(!TheFunction) {
+		std::cout << "process Function Fail! Function cannot be null.\n";
+		exit(1);
+	}
+	for(const auto arg : TheFunction->args()) {
+		if(!arg->hasName()) {
+			CreateFunctionSlot(arg);
+		}
+	}
+	for(auto &BB : *TheFunction) {
+		if(!BB.hasName()) {
+			CreateFunctionSlot(&BB);
+		}
+		for(auto &I : BB) {
+			// std::cout << "CALLED\n";
+			if(!I.hasName()) {
+				CreateFunctionSlot(&I);
+			}
+		}
+	}
+	FunctionProcessed = true;
+}
+
+void SlotTracker::CreateFunctionSlot(const Value *V) {
+	__assert__(V, "CreateFunctionSlot Fail! Cannot insert a null value.");
+	__assert__(!V->hasName(), "CreateFunctionSlot Fail! Cannot insert a named value");
+	__assert__(fMap.find(V) == fMap.end(), "CreateFunctionSlot Fail! Reinsert the same value.");
+	fMap[V] = fNext++;
+}
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 
 void printIRNameWithoutPrefix(const std::string &Name) {
-  assert(!Name.empty() && "Cannot get empty name!");
+	assert(!Name.empty() && "Cannot get empty name!");
 
-  // Scan the name to see if it needs quotes first.
-  bool NeedsQuotes = isdigit(static_cast<unsigned char>(Name[0]));
-  if (!NeedsQuotes) {
-    for (unsigned char C : Name) {
-      // By making this unsigned, the value passed in to isalnum will always be
-      // in the range 0-255.  This is important when building with MSVC because
-      // its implementation will assert.  This situation can arise when dealing
-      // with UTF-8 multibyte characters.
-      if (!isalnum(static_cast<unsigned char>(C)) && C != '-' && C != '.' &&
-          C != '_') {
-        NeedsQuotes = true;
-        break;
-      }
-    }
-  }
+	// Scan the name to see if it needs quotes first.
+	bool NeedsQuotes = isdigit(static_cast<unsigned char>(Name[0]));
+	if (!NeedsQuotes) {
+		for (unsigned char C : Name) {
+		// By making this unsigned, the value passed in to isalnum will always be
+		// in the range 0-255.  This is important when building with MSVC because
+		// its implementation will assert.  This situation can arise when dealing
+		// with UTF-8 multibyte characters.
+		if (!isalnum(static_cast<unsigned char>(C)) && C != '-' && C != '.' &&
+			C != '_') {
+			NeedsQuotes = true;
+			break;
+		}
+		}
+	}
 
-  // If we didn't need any quotes, just write out the name in one blast.
-  if (!NeedsQuotes) {
-    OS << Name;
-    return;
-  }
+	// If we didn't need any quotes, just write out the name in one blast.
+	if (!NeedsQuotes) {
+		Out << Name;
+		return;
+	}
 
-  // Okay, we need quotes.  Output the quotes and escape any scary characters as
-  // needed.
-  OS << '"';
-  printEscapedString(Name, OS);
-  OS << '"';
+	// Okay, we need quotes.  Output the quotes and escape any scary characters as
+	// needed.
+	Out << '"';
+	// printEscapedString(Name, OS);
+	Out << '"';
 }
 
 /// Turn the specified name into an 'LLVM name', which is either prefixed with %
 /// (if the string only contains simple characters) or is surrounded with ""'s
 /// (if it has special chars in it). Print it out.
 static void PrintLLVMName(const std::string &Name, PrefixType Prefix) {
-  switch (Prefix) {
-  case NoPrefix:
-    break;
-  case GlobalPrefix:
-    Out << '@';
-    break;
-  case ComdatPrefix:
-    Out << '$';
-    break;
-  case LabelPrefix:
-    break;
-  case LocalPrefix:
-    Out << '%';
-    break;
-  }
-  printIRNameWithoutPrefix(Name);
+	switch (Prefix) {
+	case NoPrefix:
+		break;
+	case GlobalPrefix:
+		Out << '@';
+		break;
+	case ComdatPrefix:
+		Out << '$';
+		break;
+	case LabelPrefix:
+		break;
+	case LocalPrefix:
+		Out << '%';
+		break;
+	}
+	// printIRNameWithoutPrefix(Name);
 }
 
 static void PrintLLVMName(const Value *V) {
-	PrintLLVMName(V->getName(), isa<GlobalValue>(V) ? GlobalPrefix : LocalPrefix);
+	PrintLLVMName(V->getName(), isa<GlobalObject>(V) ? GlobalPrefix : LocalPrefix);
 }
+
+AsmWriter::AsmWriter(Module *M, SlotTracker *S) 
+: TheModule(M), Machine(S), TypePrinter(nullptr) {
+	TypePrinter = new TypePrinting;
+}
+
+// Only non-global constant value (like constantInt) will be passed in there
+// Constant
+void AsmWriter::WriteConstantInternal(const Constant* CV) {
+	if (isa<ConstantInt>(CV)) {
+		if (auto CI = dyn_cast<ConstantInt>(CV)) {
+			if (CI->getType()->isIntegerTy(1)) {
+				Out << CI->getValue() ? "true" : "false";
+			}
+			Out << CI->getValue();
+		}
+		return;
+	}
+}
+
+
 
 // Full implementation of printing a Value as an operand with support for
 // TypePrinting, etc.
-static void WriteAsOperandInternal(const Value *V,
-                                   AsmWriterContext &WriterCtx) {
+// Non-global constant -> print directly the constant
+// Global -> print with @
+// Local -> print with %
+void AsmWriter::WriteAsOperandInternal(const Value *V) {
     if (V->hasName()) {
-        PrintLLVMName(Out, V);
-        return;
-    }
+		PrintLLVMName(V);
+		return;
+	}
+
+	SlotTracker *cur_Machine = this->Machine;
 
     const Constant *CV = dyn_cast<Constant>(V);
-    if (CV && !isa<GlobalValue>(CV)) {
-        assert(WriterCtx.TypePrinter && "Constants require TypePrinting!");
-        WriteConstantInternal(Out, CV, WriterCtx);
+    if (CV && !isa<GlobalObject>(CV)) {
+        __assert__(TypePrinter, "Constants require TypePrinting!");
+        WriteConstantInternal(CV);
         return;
     }
-
-    // if (const InlineAsm *IA = dyn_cast<InlineAsm>(V)) {
-    //     Out << "asm ";
-    //     if (IA->hasSideEffects())
-    //     Out << "sideeffect ";
-    //     if (IA->isAlignStack())
-    //     Out << "alignstack ";
-    //     // We don't emit the AD_ATT dialect as it's the assumed default.
-    //     if (IA->getDialect() == InlineAsm::AD_Intel)
-    //     Out << "inteldialect ";
-    //     if (IA->canThrow())
-    //     Out << "unwind ";
-    //     Out << '"';
-    //     printEscapedString(IA->getAsmString(), Out);
-    //     Out << "\", \"";
-    //     printEscapedString(IA->getConstraintString(), Out);
-    //     Out << '"';
-    //     return;
-    // }
-
-    // if (auto *MD = dyn_cast<MetadataAsValue>(V)) {
-    //     WriteAsOperandInternal(Out, MD->getMetadata(), WriterCtx,
-    //                         /* FromValue */ true);
-    //     return;
-    // }
 
     char Prefix = '%';
     int Slot;
-    auto *Machine = WriterCtx.Machine;
-    // If we have a SlotTracker, use it.
-    if (Machine) {
-        if (const GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
-        Slot = Machine->getGlobalSlot(GV);
-        Prefix = '@';
-        } else {
-        Slot = Machine->getLocalSlot(V);
+    if (const GlobalObject *GV = dyn_cast<GlobalObject>(V)) {
+			Slot = cur_Machine->getGlobalSlot(GV);
+			Prefix = '@';
+        } else { // the value is a local
 
-        // If the local value didn't succeed, then we may be referring to a value
-        // from a different function.  Translate it, as this can happen when using
-        // address of blocks.
-        if (Slot == -1)
-            if ((Machine = createSlotTracker(V))) {
-            Slot = Machine->getLocalSlot(V);
-            delete Machine;
-            }
+        	Slot = cur_Machine->getLocalSlot(V);
+
+        	// If the local value didn't succeed, then we may be referring to a value
+        	// from a different function.  Translate it, as this can happen when using
+        	// address of blocks.
+			if (Slot == -1) {
+				if ((cur_Machine = createSlotTracker(V))) {
+					Slot = cur_Machine->getLocalSlot(V);
+					delete cur_Machine;
+				}
+			}
         }
-    } else if ((Machine = createSlotTracker(V))) {
-        // Otherwise, create one to get the # and then destroy it.
-        if (const GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
-        Slot = Machine->getGlobalSlot(GV);
-        Prefix = '@';
-        } else {
-        Slot = Machine->getLocalSlot(V);
-        }
-        delete Machine;
-        Machine = nullptr;
-    } else {
-        Slot = -1;
-    }
 
     if (Slot != -1)
         Out << Prefix << Slot;
@@ -219,26 +314,29 @@ void AsmWriter::writeOperand(const Value *Operand, bool PrintType) {
         return;
     }
     if (PrintType) {
-        TypePrinter::print(Operand->getType());
+        TypePrinter->print(Operand->getType());
         Out << ' ';
     }
     WriteAsOperandInternal(Operand);
 }
 
-void AsmWriter::printInstruction(Instruction *inst) {
+void AsmWriter::printInstruction(const Instruction *inst) {
 	// Print out indentation for an instruction.
   	Out << "  ";
 
+	// The dest is always a local name
 	if (inst->hasName()) {
 		PrintLLVMName(inst);
 		Out << " = ";
 	} else if (!inst->getType()->isVoidTy()) {
 		// Print out the def slot taken.
-		int SlotNum = Machine.getLocalSlot(inst);
-		if (SlotNum == -1)
-			Out << "<badref> = ";
-		else
-			Out << '%' << SlotNum << " = ";
+		int SlotNum = Machine->getLocalSlot(inst);
+		if(SlotNum == -1) {
+			Out << "<badref>";
+		} else {
+			Out << "%" << SlotNum;
+		}
+		Out << " = ";
 	}
 
 	// if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
@@ -255,7 +353,7 @@ void AsmWriter::printInstruction(Instruction *inst) {
 
 	// Print out the compare instruction predicates
 	if (isa<CmpInst>(inst)) {
-		auto CI = static_cast<CmpInst*>(inst);
+		auto CI = dyn_cast<CmpInst>(inst);
 		Out << ' ' << CmpInst::getPredicateName(CI->getPredicate());
 	}
 
@@ -272,7 +370,7 @@ void AsmWriter::printInstruction(Instruction *inst) {
 		writeOperand(BI->getSuccessor(1), true);
 	} else if (const AllocaInst *AI = dyn_cast<AllocaInst>(inst)) {
 		Out << ' ';
-		TypePrinter::print(AI->getAllocatedType());
+		TypePrinter->print(AI->getAllocatedType());
 
 		// Explicitly write the array size if the code is broken, if it's an array
 		// allocation, or if the type is not canonical for scalar allocations.  The
@@ -286,18 +384,18 @@ void AsmWriter::printInstruction(Instruction *inst) {
 		if (AI->isAligned()) {
 			Out << ", align " << AI->getAlign();
 		}
-	} else if (isa<ReturnInst>(I) && !Operand) {
+	} else if (isa<ReturnInst>(inst) && !Operand) {
     	Out << " void"; 
 	} else if (Operand) {   // Print the normal way.
-		if (const auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
-			Out << ' ';
-			TypePrinter::print(GEP->getSourceElementType());
-			Out << ',';
-		} else if (const auto *LI = dyn_cast<LoadInst>(&I)) {
-			Out << ' ';
-			TypePrinter::print(LI->getType());
-			Out << ',';
-		}
+		// if (const auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
+		// 	Out << ' ';
+		// 	TypePrinting::print(GEP->getSourceElementType());
+		// 	Out << ',';
+		// } else if (const auto *LI = dyn_cast<LoadInst>(&I)) {
+		// 	Out << ' ';
+		// 	TypePrinting::print(LI->getType());
+		// 	Out << ',';
+		// }
 
 		// PrintAllTypes - Instructions who have operands of all the same type
 		// omit the type from all but the first operand.  If the instruction has
@@ -322,26 +420,37 @@ void AsmWriter::printInstruction(Instruction *inst) {
 
 		if (!PrintAllTypes) {
 			Out << ' ';
-			TypePrinter::print(TheType);
+			TypePrinter->print(TheType);
 		}
 
 		Out << ' ';
-		for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i) {
+		for (unsigned i = 0, E = inst->getNumOperands(); i != E; ++i) {
 			if (i) Out << ", ";
-			writeOperand(I.getOperand(i), PrintAllTypes);
+			writeOperand(inst->getOperand(i), PrintAllTypes);
 		}
 	}
 }
 
-void AsmWriter::printInstructionLine(Instruction *inst) {
+void AsmWriter::printInstructionLine(const Instruction *inst) {
 	printInstruction(inst);
 	Out << "\n";
 }
 
-void AsmWriter::printBasicBlock(BasicBlock *BB) {
-    if(BB->name != "") {
-        Out <<   BB->name << ":\n";
-    }
+void AsmWriter::printBasicBlock(const BasicBlock *BB) {
+	bool isEntry = BB->getParent() && BB->isEntryBlock();
+    if(BB->hasName()) {
+		Out << "\n";
+        PrintLLVMName(BB->getName(), LabelPrefix);
+		Out << ":\n";
+    } else if(!isEntry) {
+		SlotTracker *curMachine = Machine;
+		int slotNum = curMachine->getLocalSlot(BB);
+		if(slotNum == -1) {
+			Out << "<badref>:\n";
+		} else {
+			Out << slotNum << ":\n";
+		}
+	}
     for(auto &inst : BB->InstList) {
         printInstructionLine(&inst);
     }

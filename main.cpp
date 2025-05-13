@@ -11,6 +11,7 @@
 #include "IR/IRBuilder.hpp"
 #include "IR/constant.hpp"
 #include "IR/module.hpp"
+#include "IR/asmWriter.hpp"
 
 // #define GenerateParser
 
@@ -52,7 +53,7 @@ int (main) (int argc, char* argv[]) {
 //     // codegen.analyze(program);
 
 //     TypeFactory::deleteAll();
-
+    IR::Module *mod = new IR::Module;
     IR::IRBuilder *builder = new IR::IRBuilder;
     IR::BasicBlock *BB = new IR::BasicBlock;
     auto intTy = IR::TypeFactory::getInt32Ty();
@@ -63,8 +64,9 @@ int (main) (int argc, char* argv[]) {
     auto v3 = builder->CreateSDiv(intTy, v2, intconst);
     auto v4 = builder->CreateUDiv(intTy, v3, intconst);
     auto curBB = builder->getInsertBlock();
-    curBB->print();
-
+    IR::Function *F = new IR::Function(nullptr, mod);
+    F->getBasicBlockList().push_back(BB);
+    BB->print();
     // builder->
     return 0;
 }

@@ -6,20 +6,14 @@ namespace IR{
 
 // Constant may contain operands
 struct Constant : public Value {
+    Constant(Type *Ty, unsigned scid)
+    : Value(Ty, scid) {}
     static Constant *getIntegerValue(Type *Ty, const uint64_t V);
+
     static bool classof(const Value *V) {
         static_assert(ConstantFirstVal == 0, "V->getValueID() >= ConstantFirstVal always succeeds");
-        return V->getValueID() <= ConstantLastVal;
+        return ConstantFirstVal <= V->getValueID() && V->getValueID()<= ConstantLastVal;
     }
-};
-
-/// Base class for constants with no operands.
-///
-/// These constants have no operands; they represent their data directly.
-/// Since they can be in use by unrelated modules (and are never based on
-/// GlobalValues), it never makes sense to RAUW them.
-struct ConstantData : public Constant {
-
 };
 
 //===----------------------------------------------------------------------===//
@@ -27,13 +21,19 @@ struct ConstantData : public Constant {
 /// represents both boolean and integral constants.
 /// Class for constant integers.
 struct ConstantInt final : public Constant {
-    uint64_t v;
 
-    ConstantInt(IntegerType *Ty, const uint64_t val) {
-        setType(Ty);
+    ConstantInt(IntegerType *Ty, const uint64_t val) 
+    : Constant(Ty, ConstantIntVal) {
         v = val;//?
     }
-    
+    uint64_t v;
+
+    uint64_t getValue() const { return v; }
+
+    // RTTI for dyn_cast
+    static bool classof(const Value *V) {
+        return V->getValueID() == ConstantIntVal;
+    }
 };
 
 

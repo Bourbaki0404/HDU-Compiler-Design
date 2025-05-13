@@ -3,42 +3,44 @@
 
 namespace IR {
 
-enum typeKind {
-    Integer,
-    Pointer,
-    Array,
-    Function,
-    Float,
-    Struct,
-    Void
-};
-
 struct Type {
+
+    enum typeKind {
+        Integer,
+        Pointer,
+        Array,
+        Function,
+        Float,
+        Struct,
+        Void,
+        Label
+    };
+
     Type(typeKind kind) {
         this->kind = kind;
     }
 
     virtual bool equals(struct Type *ty) {
-        return false;
+        return ty->kind == kind;
     }
 
     /// Return true if this is an IntegerType of the given width.
-    bool isIntegerTy(unsigned Bitwidth) const { return kind == IR::typeKind::Integer; }
+    bool isIntegerTy(unsigned Bitwidth) const { return kind == typeKind::Integer; }
 
     /// Return true if this is an instance of VoidType
-    bool isVoidTy() const { return kind == IR::typeKind::Void; }
+    bool isVoidTy() const { return kind == typeKind::Void; }
 
     /// Return true if this is 'float', a 32-bit IEEE fp type.
-    bool isFloatTy() const { return kind == IR::typeKind::Float; }
+    bool isFloatTy() const { return kind == typeKind::Float; }
 
     /// True if this is an instance of FunctionType.
-    bool isFunctionTy() const { return kind == IR::typeKind::Function; }
+    bool isFunctionTy() const { return kind == typeKind::Function; }
 
     /// True if this is an instance of ArrayType.
-    bool isArrayTy() const { return kind == IR::typeKind::Array; }
+    bool isArrayTy() const { return kind == typeKind::Array; }
 
     /// True if this is an instance of PointerType.
-    bool isPointerTy() const { return kind == IR::typeKind::Pointer; }
+    bool isPointerTy() const { return kind == typeKind::Pointer; }
 
     void setSubclassData(unsigned val) { SubclassData = val; }
 
@@ -73,10 +75,6 @@ struct IntegerType : public Type {
 
     bool equals(struct Type *ty);
 
-};
-
-struct VoidType : public Type {
-    bool equals(struct Type *ty);
 };
 
 struct PointerType : public Type {
@@ -116,7 +114,10 @@ struct TypeFactory {
         return ty;
     }
     static Type *getVoidTy() {
-        return new Void
+        return new Type(Type::typeKind::Void);
+    }
+    static Type *getLabelTy() {
+        return new Type(Type::typeKind::Label);
     }
 };
 
