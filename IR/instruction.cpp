@@ -20,7 +20,11 @@ void Instruction::setOperand(Value* v, size_t i) {
         std::cout << "setOperand Fail\n";
         exit(1);
     } else {
+
+
         auto use = new Use(v, this);
+
+
         uses[i] = use;
         v->addUse(use);
     }
@@ -34,6 +38,25 @@ Value *Instruction::getOperand(size_t i) const {
         return uses[i]->val;
     }
 }
+
+unsigned Instruction::getNumSuccessors() const {
+    __assert__(isTerminator(), "Instruction getNumSuccessors fail\n");
+    switch(getOpcode()) {
+        RET: return ((const ReturnInst*)this)->getNumSuccessors();
+        BR : return ((const BranchInst*)this)->getNumSuccessors();
+        default: __assert__(false, "undef instruction at getNumSuccessors");
+    }
+}
+
+BasicBlock *Instruction::getSuccessor(unsigned i) const {
+    __assert__(isTerminator() && i <= getNumSuccessors(), "Instruction getSuccessor fail\n");
+    switch(getOpcode()) {
+        RET: return ((const ReturnInst*)this)->getSuccessor(i);
+        BR : return ((const BranchInst*)this)->getSuccessor(i);
+        default: __assert__(false, "undef instruction at getNumSuccessors");
+    }
+}
+
 
 void Instruction::removeFromParent() {
     getParent()->getInstList().remove(getIterator());
@@ -153,7 +176,7 @@ std::string CmpInst::getPredicateName(Predicate Pred) {
 
 
 BranchInst::BranchInst(BasicBlock *IfTrue)
-    : Instruction(TypeFactory::getVoidTy(), BR, 1) {
+    : Instruction(Type::getVoidTy(), BR, 1) {
     if(!IfTrue) {
         std::cout << "BranchInst Fail.\n";
     }
@@ -161,7 +184,7 @@ BranchInst::BranchInst(BasicBlock *IfTrue)
 }
 
 BranchInst::BranchInst(BasicBlock *IfTrue, BasicBlock *IfFalse, Value *Cond)
-    : Instruction(TypeFactory::getVoidTy(), BR, 3) {
+    : Instruction(Type::getVoidTy(), BR, 3) {
   // Assign in order of operand index to make use-list order predictable.
     this->setOperand(IfTrue, 0);
     this->setOperand(IfFalse, 1);
@@ -169,12 +192,12 @@ BranchInst::BranchInst(BasicBlock *IfTrue, BasicBlock *IfFalse, Value *Cond)
 }
 
 ReturnInst::ReturnInst(Value *retVal)
-: Instruction(TypeFactory::getVoidTy(), RET, 1) {
+: Instruction(Type::getVoidTy(), RET, 1) {
     this->setOperand(retVal, 0);
 }
 
 ReturnInst::ReturnInst()
-: Instruction(TypeFactory::getVoidTy(), RET, 0) {}
+: Instruction(Type::getVoidTy(), RET, 0) {}
 
 
 }

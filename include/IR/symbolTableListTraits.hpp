@@ -117,7 +117,8 @@ void SymbolTableListTraits<ValueSubClass>::removeNodeFromList(ValueSubClass *V) 
 }
 
 /// setSymTabObject - This is called when (f.e.) the parent of a basic block
-/// changes.  This requires us to remove all the instruction symtab entries from
+/// changes.  
+/// This requires us to remove all the instruction symtab entries from
 /// the current function and reinsert them into the new function.
 template <typename ValueSubClass>
 template <typename TPtr>

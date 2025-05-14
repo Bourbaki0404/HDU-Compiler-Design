@@ -26,20 +26,33 @@ void BasicBlock::print() {
 	writer.printBasicBlock(this);
 }
 
+void Function::print() {
+	__assert__(this, "Function print fail, null pointer");
+	__assert__(this->getParent(), "Function print fail. Module not set");
+	SlotTracker *S = createSlotTracker(this);
+	AsmWriter writer(this->getParent(), S);
+	writer.printFunction(this);
+}
+
 void TypePrinting::print(Type *Ty) {
-    switch (Ty->kind) {
-        case Type::typeKind::Integer: {
-            auto *IntTy = static_cast<IntegerType*>(Ty);
+    switch (Ty->getTypeKind()) {
+        case Type::typeKind::IntegerTy: {
+            auto *IntTy = dyn_cast<IntegerType>(Ty);
             Out << "i" << IntTy->getBitWidth();
             return;
         }
 
-        case Type::typeKind::Float: {
+        case Type::typeKind::FloatTy: {
             Out << "float";
             return;
         }
 
-        case Type::typeKind::Pointer: {
+		case Type::typeKind::VoidTy: {
+			Out << "void";
+			return;
+		}
+
+        case Type::typeKind::PointerTy: {
             auto *PTy = static_cast<PointerType*>(Ty);
             // Assume we have a method to get pointee type
             Type *elementType = reinterpret_cast<Type*>(PTy->getSubclassData());
@@ -48,7 +61,7 @@ void TypePrinting::print(Type *Ty) {
             return;
         }
 
-        case Type::typeKind::Array: {
+        case Type::typeKind::ArrayTy: {
             auto *ATy = static_cast<ArrayType*>(Ty);
             // Assume ArrayType has getElementType() and getNumElements()
             Type *elementType = reinterpret_cast<Type*>(ATy->getSubclassData());
@@ -59,7 +72,7 @@ void TypePrinting::print(Type *Ty) {
             return;
         }
 
-        case Type::typeKind::Function: {
+        case Type::typeKind::FunctionTy: {
             auto *FTy = static_cast<FunctionType*>(Ty);
             // Assume FunctionType has getReturnType() and getParamTypes()
             Type *retTy = reinterpret_cast<Type*>(FTy->getSubclassData());
@@ -90,10 +103,10 @@ enum PrefixType {
 };
 
 inline void SlotTracker::initializeIfNeeded() {
-  if (TheModule) {
-    // processModule();      // Initialize the module-level slot table
-    TheModule = nullptr;
-  }
+//   if (TheModule) {
+//     // processModule();      // Initialize the module-level slot table
+//     TheModule = nullptr;
+//   }
 
   if (TheFunction && !FunctionProcessed)
     processFunction();    // Initialize the function-level slot table
@@ -102,6 +115,7 @@ inline void SlotTracker::initializeIfNeeded() {
 SlotTracker::SlotTracker(const Function *F)
     : TheFunction(F), TheModule(F->getParent()) {
 		__assert__(F, "SlotTracker Initialization Fail, the function cannot be null.\n");
+		__assert__(TheModule, "SlotTracker Initialization Fail, the Module cannot be null.\n");
 	}
 
 SlotTracker::SlotTracker(const Module *M)
@@ -110,6 +124,7 @@ SlotTracker::SlotTracker(const Module *M)
 	}
 
 SlotTracker *createSlotTracker(const Value *V) {
+	__assert__(V, "CreateSlotTracker Fail");
 	if (const Argument *FA = dyn_cast<Argument>(V))
 		return new SlotTracker(FA->getParent());
 
@@ -120,8 +135,8 @@ SlotTracker *createSlotTracker(const Value *V) {
 	if (const BasicBlock *BB = dyn_cast<BasicBlock>(V))
 		return new SlotTracker(BB->getParent());
 
-	if (const GlobalObject *GV = dyn_cast<GlobalObject>(V))
-		return new SlotTracker(GV->getParent());
+	// if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(V))
+	// 	return new SlotTracker(GV->getParent());
 
 	if (const Function *Func = dyn_cast<Function>(V))
 		return new SlotTracker(Func);
@@ -234,7 +249,7 @@ static void PrintLLVMName(const std::string &Name, PrefixType Prefix) {
 		Out << '%';
 		break;
 	}
-	// printIRNameWithoutPrefix(Name);
+	printIRNameWithoutPrefix(Name);
 }
 
 static void PrintLLVMName(const Value *V) {
@@ -436,6 +451,60 @@ void AsmWriter::printInstructionLine(const Instruction *inst) {
 	Out << "\n";
 }
 
+/// printArgument - This member is called for every argument that is passed into
+/// the function.  Simply print it out
+void AsmWriter::printArgument(const Argument *Arg) {
+  // Output type...
+  TypePrinter->print(Arg->getType());
+
+  // Output parameter attributes list
+//   if (Attrs.hasAttributes()) {
+//     Out << ' ';
+//     writeAttributeSet(Attrs);
+//   }
+
+  // Output name, if available...
+  if (Arg->hasName()) {
+    Out << ' ';
+    PrintLLVMName(Arg);
+  } else {
+    int Slot = Machine->getLocalSlot(Arg);
+    __assert__(Slot != -1, "expect argument in function here");
+    Out << " %" << Slot;
+  }
+}
+
+void AsmWriter::printFunction(const Function *fn) {
+	__assert__(fn, "printFunction fail, nullpointer\n");
+	
+	Machine->incorporateFunction(fn);
+
+	Out << "\n";
+	Out << "define ";
+
+	TypePrinter->print(fn->getReturnType());
+
+	Out << " ";
+	WriteAsOperandInternal(fn);
+	Out << "(";
+
+	for(auto &arg : fn->args()) {
+		if(arg->getArgNo() > 0) Out << ", ";
+		printArgument(arg);
+	}
+	Out << ") ";
+
+
+
+	Out << "{\n";
+
+	for(auto &BB : *fn) {
+		printBasicBlock(&BB);
+	}
+
+	Out << "}\n";
+}
+
 void AsmWriter::printBasicBlock(const BasicBlock *BB) {
 	bool isEntry = BB->getParent() && BB->isEntryBlock();
     if(BB->hasName()) {
@@ -444,6 +513,7 @@ void AsmWriter::printBasicBlock(const BasicBlock *BB) {
 		Out << ":\n";
     } else if(!isEntry) {
 		SlotTracker *curMachine = Machine;
+		Out << "\n";
 		int slotNum = curMachine->getLocalSlot(BB);
 		if(slotNum == -1) {
 			Out << "<badref>:\n";

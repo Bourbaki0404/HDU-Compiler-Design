@@ -5,6 +5,7 @@
 namespace IR{
 
 // Constant may contain operands
+// Constant can be named(globalObjects can have name) or unnamed(like constantInt)
 struct Constant : public Value {
     Constant(Type *Ty, unsigned scid)
     : Value(Ty, scid) {}
@@ -15,6 +16,11 @@ struct Constant : public Value {
         return ConstantFirstVal <= V->getValueID() && V->getValueID()<= ConstantLastVal;
     }
 };
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////ConstantData://////////////////////////////////
+/// Constant data is a constant that has no name and can be used as the operand of instruction
+
 
 //===----------------------------------------------------------------------===//
 /// This is the shared class of boolean and integer constants. This class

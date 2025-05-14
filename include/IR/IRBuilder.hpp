@@ -151,10 +151,21 @@ struct IRBuilder {
     // Value *buildSExt(Value *operand, Type *toType, const std::string &name = "");
 
     // // Control flow
-    // Value* CreateBr(BasicBlock* dest);
-    // Value* CreateCondBr(Value* cond, BasicBlock* ifTrue, BasicBlock* ifFalse);
-    // Value* CreateRet(Value* val);
-    // Value* CreateRetVoid();
+    Value* CreateBr(BasicBlock* dest) {
+        return Insert(new BranchInst(dest));
+    }
+    
+    Value* CreateCondBr(Value* cond, BasicBlock* ifTrue, BasicBlock* ifFalse) {
+        return Insert(new BranchInst(ifTrue, ifFalse, cond));
+    }
+
+    Value* CreateRet(Value* val) {
+        return Insert(new ReturnInst(val));
+    }
+
+    Value* CreateRetVoid() {
+        return Insert(new ReturnInst());
+    }
 
     template<typename T, typename... Args>
     T* CreateTracked(Args&&... args) {

@@ -17,7 +17,7 @@ struct Module;
 // parent is managed by GlobalObject
 struct Function : public GlobalObject, public dlist_node<Function> {
 	friend class SymbolTableListTraits<Function>;
-	Function(FunctionType *ty, Module *M);
+	Function(FunctionType *ty, LinkageTypes Linkage, const std::string &Name = "", Module *M = nullptr);
 
 	using BasicBlockListType = SymbolTableList<BasicBlock>;
 	using iterator = BasicBlockListType::iterator;
@@ -29,14 +29,21 @@ struct Function : public GlobalObject, public dlist_node<Function> {
     // void setFuncArgs(Function *Func, std::vector<std::string> FuncArgs);
     // Function *createFunc(Type *RetTy, std::vector<Type *>& Params, std::string Name, bool isVarArg = false);
     BasicBlockListType &getBasicBlockList() 	{ return basic_blocks; }
-	BasicBlock		   &getEntryBlock()    	 	{ return basic_blocks.front(); }
-	const BasicBlock   &getEntryBlock()	const 	{ return basic_blocks.front(); }
 
-    /// Returns the FunctionType for me.
-      
-    // FunctionType *getFunctionType() const {
-    //     return cast<FunctionType>(getValueType());
-    // }
+    /// Returns the FunctionType for me.     
+    FunctionType *getFunctionType() const {
+		__assert__(isa<FunctionType>(getValueType()), "getFunctionType fail");
+        return dyn_cast<FunctionType>(getValueType());
+    }
+
+	Type *getReturnType() const {
+		auto ty = getFunctionType();
+		return ty->getReturnType();
+	}
+
+	// Build the arguments vector if needed, all arguments start out unnamed.
+	void BuildLazyArguments();
+
 	static BasicBlockListType Function::*getSublistAccess(BasicBlock*) {
     	return &Function::basic_blocks;
   	}
@@ -46,11 +53,29 @@ struct Function : public GlobalObject, public dlist_node<Function> {
     	return SymTab.get();
   	}
 
+
+	// Returns the first basic block in the function.
+	// Must be used when the function is not empty.
+	BasicBlock		   &getEntryBlock()    	 	{ return front(); }
+	const BasicBlock   &getEntryBlock()	const 	{ return front(); }
+
 	/// Iteration of basic blocks
 	iterator                begin()       { return basic_blocks.begin(); }
 	const_iterator          begin() const { return basic_blocks.begin(); }
 	iterator                end  ()       { return basic_blocks.end();   }
 	const_iterator          end  () const { return basic_blocks.end();   }
+
+
+	size_t      	  size()  const { return basic_blocks.size(); }
+	bool        	  empty() const { return basic_blocks.empty(); }
+	const BasicBlock &front() const { return basic_blocks.front(); }
+	BasicBlock       &front()       { return basic_blocks.front(); }
+	const BasicBlock &back()  const { return basic_blocks.back(); }
+	BasicBlock       &back()        { return basic_blocks.back(); }
+
+
+
+
 
 	/// Manage the arguments
 	arg_iterator arg_begin() {
@@ -89,7 +114,14 @@ struct Function : public GlobalObject, public dlist_node<Function> {
 		return V->getValueID() == FunctionVal;
 	}
 
+	void print();
+
+	bool isVarArg() const {
+		return getFunctionType()->isVarArg();
+	}
+
 private:
+	unsigned NumArgs;
     BasicBlockListType basic_blocks;
     argListType arguments;
     std::unique_ptr<ValueSymbolTable> SymTab; ///< Symbol table of args/instructions

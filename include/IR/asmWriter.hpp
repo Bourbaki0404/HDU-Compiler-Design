@@ -11,6 +11,7 @@ struct Module;
 struct GlobalObject;
 struct Type;
 struct Value;
+struct Argument;
 struct Constant;
 
 struct TypePrinting {
@@ -74,8 +75,9 @@ struct AsmWriter {
     void writeOperand(const Value *Operand, bool PrintType);
     void printInstruction(const Instruction *inst);
     void printBasicBlock(const BasicBlock *BB);
-    // void printFunction(Function *fn);
-    void printInstructionLine(const Instruction *inst);   
+    void printFunction(const Function *fn);
+    void printInstructionLine(const Instruction *inst);
+    void printArgument(const Argument *Arg);
 
     const Module *TheModule = nullptr;
     SlotTracker *Machine = nullptr;

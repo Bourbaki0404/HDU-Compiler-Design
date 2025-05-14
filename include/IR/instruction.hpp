@@ -86,6 +86,8 @@ struct Instruction : public Value, public dlist_node<Instruction> {
     size_t getOpcode() const { return subclassID - InstructionVal; }
     static std::string getOpcodeName(size_t OpCode);
     std::string getOpcodeName() const { return getOpcodeName(getOpcode()); }
+
+
     void setOperand(Value* v, size_t i);
     Value *getOperand(size_t i) const;
     size_t getNumOperands() const { return numOperands; }
@@ -98,6 +100,12 @@ struct Instruction : public Value, public dlist_node<Instruction> {
     /// This method unlinks 'this' from the containing basic block, but does not
     /// delete it.
     void removeFromParent();
+
+    /// Return the number of successors that this instruction has. The instruction
+    /// must be a terminator.
+    unsigned getNumSuccessors() const ;
+
+    BasicBlock *getSuccessor(unsigned i) const ;
 
     bool isTerminator() const { return isTerminator(getOpcode()); }
     bool isUnaryOp() const { return isUnaryOp(getOpcode()); }
@@ -326,7 +334,7 @@ struct BranchInst : public Instruction {
         if(isConditional()) return getOperand(2);
         else return nullptr;
     }
-    BasicBlock *getSuccessor(size_t s) {
+    BasicBlock *getSuccessor(unsigned s) const {
         if(isConditional()) {
             if(s > 1) return nullptr;
             else return dyn_cast<BasicBlock>(getOperand(s));
@@ -335,29 +343,33 @@ struct BranchInst : public Instruction {
             else return dyn_cast<BasicBlock>(getOperand(0));
         }
     }
+    unsigned getNumSuccessors() const {
+        if(isConditional()) return 2;
+        return 1;
+    }
 };
 
-// struct GetElementPtrInst : public Instruction {
+struct GetElementPtrInst : public Instruction {
 
-//     Type *SourceElementType;
-//     Type *ResultElementType;
-//     // static Type *getGEPReturnType(Type *ElTy, Value *Ptr,
-//     //                                 const std::vector<Value *> &IdxList) {
-//     //     PointerType *OrigPtrTy = cast<PointerType>(Ptr->getType()->getScalarType());
-//     //     Type *ResultElemTy = checkGEPType(getIndexedType(ElTy, IdxList));
-//     //     Type *PtrTy = OrigPtrTy->isOpaque()
-//     //     ? PointerType::get(OrigPtrTy->getContext(), AddrSpace)
-//     //     : PointerType::get(ResultElemTy, AddrSpace);
-//     //     // Vector GEP
-//     //     for (Value *Index : IdxList)
-//     //     if (auto *IndexVTy = dyn_cast<VectorType>(Index->getType())) {
-//     //         ElementCount EltCount = IndexVTy->getElementCount();
-//     //         return VectorType::get(PtrTy, EltCount);
-//     //     }
-//     //     // Scalar GEP
-//     //     return PtrTy;
-//     // }
-// };
+    Type *SourceElementType;
+    Type *ResultElementType;
+    // static Type *getGEPReturnType(Type *ElTy, Value *Ptr,
+    //                                 const std::vector<Value *> &IdxList) {
+    //     PointerType *OrigPtrTy = cast<PointerType>(Ptr->getType()->getScalarType());
+    //     Type *ResultElemTy = checkGEPType(getIndexedType(ElTy, IdxList));
+    //     Type *PtrTy = OrigPtrTy->isOpaque()
+    //     ? PointerType::get(OrigPtrTy->getContext(), AddrSpace)
+    //     : PointerType::get(ResultElemTy, AddrSpace);
+    //     // Vector GEP
+    //     for (Value *Index : IdxList)
+    //     if (auto *IndexVTy = dyn_cast<VectorType>(Index->getType())) {
+    //         ElementCount EltCount = IndexVTy->getElementCount();
+    //         return VectorType::get(PtrTy, EltCount);
+    //     }
+    //     // Scalar GEP
+    //     return PtrTy;
+    // }
+};
 
 /// Return a value (possibly void), from a function.  Execution
 /// does not continue in this function any longer.
@@ -371,11 +383,59 @@ struct ReturnInst : public Instruction {
         return getNumOperands() != 0 ? getOperand(0) : nullptr;
     }
 
+    unsigned getNumSuccessors() const { return 0; }
+    BasicBlock *getSuccessor(unsigned i) const { return nullptr; }
 
+
+    // For isa and dyn_cast
     static bool classof(const Instruction *I) {
         return (I->getOpcode() == Instruction::RET);
     }
+
     static bool classof(Value *V) {
+        return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
+    }
+};
+
+struct CallInst : public Instruction {
+    CallInst(Type *ty, Value *callee, const std::string& name = "");
+    static bool classof(const Instruction *I) {
+        return (I->getOpcode() == Instruction::CALL);
+    }
+
+
+    // For isa and dyn_cast
+    static bool classof(Value *V) {
+        return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
+    }   
+    static bool classof(const Instruction *I) {
+        return I->getOpcode() == Instruction::CALL;
+    }   
+};
+
+
+// PHINode - The PHINode class is used to represent the magical mystical PHI
+// node, that can not exist in nature, but can be synthesized in a computer
+// scientist's overactive imagination.
+struct PHINode : public Instruction {
+    PHINode(Type *ty, const std::string& name = "");
+    static bool classof(const Instruction *I) {
+        return (I->getOpcode() == Instruction::PHI);
+    }
+
+    void setIncomingValue(unsigned i, Value *V);
+    Value *getIncomingValue(unsigned i) const;
+    
+    void setIncomingBlock(unsigned i, BasicBlock *BB);
+    BasicBlock *getIncomingBlock(unsigned i) const;
+
+    void replaceIncomingBlockWith(BasicBlock *Old, BasicBlock *New);
+
+      /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    static bool classof(const Instruction *I) {
+        return I->getOpcode() == Instruction::PHI;
+    }
+    static bool classof(const Value *V) {
         return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
     }
 };

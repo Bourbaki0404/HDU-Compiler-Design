@@ -1,13 +1,17 @@
 #pragma once
 #include "common/common.hpp"
 
+
 template<typename T> 
 struct dlist_node;
 
 
+// A doubly linked intrusive list node implementation
+// If T is the node of the list, then it must inherit from dlist_node<T>
 template<typename T> 
 struct dlist_node {
     template <typename, typename, typename> friend struct dlist;
+
     dlist_node *prev = nullptr;
     dlist_node *next = nullptr;
 
@@ -70,9 +74,67 @@ struct dlist_node {
         bool operator==(const const_iterator &other) const { return cur == other.cur; }
     };
 
+    struct reverse_iterator {
+        using value_type = T;
+        using difference_type = uint64_t;
+        using pointer = T*;
+        using reference = T&;
+
+        nodePtr cur;
+
+        reverse_iterator(nodePtr n) : cur(n) {}
+        reverse_iterator() : cur(nullptr) {}
+
+        reference operator*() const { return static_cast<reference>(*cur); }
+        pointer operator->() const { return static_cast<pointer>(cur); }
+
+        reverse_iterator &operator++() {
+            cur = cur->prev;
+            return *this;
+        }
+
+        reverse_iterator operator++(int) {
+            reverse_iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        bool operator!=(const reverse_iterator &other) const { return cur != other.cur; }
+        bool operator==(const reverse_iterator &other) const { return cur == other.cur; }
+    };
+
+    struct const_reverse_iterator {
+        using value_type = const T;
+        using difference_type = uint64_t;
+        using pointer = const T*;
+        using reference = const T&;
+
+        const nodePtr cur;
+
+        const_reverse_iterator(nodePtr n) : cur(n) {}
+        const_reverse_iterator() : cur(nullptr) {}
+
+        reference operator*() const { return static_cast<reference>(*cur); }
+        pointer operator->() const { return static_cast<pointer>(cur); }
+
+        const_reverse_iterator &operator++() {
+            cur = cur->prev;
+            return *this;
+        }
+
+        const_reverse_iterator operator++(int) {
+            const_reverse_iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        bool operator!=(const const_reverse_iterator &other) const { return cur != other.cur; }
+        bool operator==(const const_reverse_iterator &other) const { return cur == other.cur; }
+    };
+
     iterator getIterator() { return iterator(this); }
 
-private:
+protected:
     // this method can only be used in class dlist
     void insert_before(dlist_node *node) {
         node->next = this;
@@ -136,6 +198,8 @@ struct dlist : public Traits {
     using const_reference = const T&;
     using iterator = typename dlist_node<T>::iterator;
     using const_iterator = typename dlist_node<T>::const_iterator;
+    using reverse_iterator = typename dlist_node<T>::reverse_iterator;
+	using const_reverse_iterator = typename dlist_node<T>::const_reverse_iterator;
     using Traits::addNodeToList;
     using Traits::removeNodeFromList;
 
@@ -223,11 +287,17 @@ struct dlist : public Traits {
     void clear() {
 
     }
-
+    
+    // iterators
     iterator begin() { return iterator(dummy_head->next); }
     const_iterator begin() const { return const_iterator(dummy_head->next); }
     iterator end() { return iterator(dummy_head); }
     const_iterator end() const { return const_iterator(dummy_head); }
+    // reverse iterators
+    reverse_iterator rbegin() { return reverse_iterator(dummy_head->prev); }
+    reverse_iterator rend() { return reverse_iterator(dummy_head); }
+    const_reverse_iterator rbegin() const { return const_reverse_iterator(dummy_head->prev); }
+    const_reverse_iterator rend() const { return const_reverse_iterator(dummy_head); }
  
 private:
 

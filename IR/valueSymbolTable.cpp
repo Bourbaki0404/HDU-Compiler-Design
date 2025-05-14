@@ -25,7 +25,9 @@ void ValueSymbolTable::reinsertValue(Value *V) {
         return;
     }
     const auto &uniqueName = makeUniqueName(V, V->getName());
-    V->setName(uniqueName);
+
+    // simply set the name of the value, do not modify the symbol table
+    V->__setName__(uniqueName);
 }
 
 
