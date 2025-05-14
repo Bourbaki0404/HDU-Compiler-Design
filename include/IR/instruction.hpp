@@ -21,8 +21,15 @@ enum InstKind {
     BR, RET
 };
 
-
+/// The instruction is the user of the Value
+/// The def-use chain is represented by the Use class, which is an entry (user, usee) pair
+/// The user holds the pointer to the Use, while the usee holds the Use itself by inserting it into the useList.
+/// To stopping using a Value, all its uses as well as pointers to it should be eliminated.
 struct Instruction : public Value, public dlist_node<Instruction> {
+    
+    /// for RTTI, Value::InstructionVal is the base value id of the Instruction class
+    /// subclassID is the value id of the Instruction subclass
+    /// use subclassId and classof to support dyn_cast and isa
     enum opcode {
         START_OF_ALL,
 
@@ -74,7 +81,7 @@ struct Instruction : public Value, public dlist_node<Instruction> {
     : Value(ty, InstructionVal + opcode) {
         this->setType(ty);
         this->numOperands = numOps;
-        this->uses.resize(numOps);
+        this->operandList.resize(numOps);
         this->parent = nullptr;
     }
     inline const BasicBlock *getParent() const { return parent; }
@@ -167,7 +174,7 @@ struct Instruction : public Value, public dlist_node<Instruction> {
     }
 
 
-    std::vector<Use*> uses;
+    std::vector<Use*> operandList;
     size_t numOperands;
     BasicBlock *parent; 
 };

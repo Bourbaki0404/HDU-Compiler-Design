@@ -29,9 +29,23 @@ struct Use : public dlist_node<Use>{
         remove_self();
     }
 
+    // get the usee
+    Value *getUser() const {
+        return val;
+    }
 
-    Value *val;
-    Instruction *inst;
+    // get the user
+    Instruction *getInst() const {
+        return inst;
+    }
+
+    // get the usee
+    Value *getUsee() const {
+        return val;
+    }
+    
+    Value *val; // the usee
+    Instruction *inst; // the user
 };
 
 struct Value {
@@ -139,15 +153,63 @@ public:
         return subclassID;
     }
 
-    IR::Type *type;
-    std::string name;
-    const unsigned subclassID;
-
     void addUse(Use* u) {   
         useList.push_back(u);
     }
 
-    
+    // void removeUse(Use* u) {
+    //     useList.remove(u);
+    // }
+
+    using useListType = dlist<Use>;
+    using use_iterator = useListType::iterator;
+    using const_use_iterator = useListType::const_iterator;
+    using use_range = iterator_range<use_iterator>;
+    using const_use_range = iterator_range<const_use_iterator>;
+
+    use_iterator use_begin() {
+        return useList.begin();
+    }
+
+    use_iterator use_end() {
+        return useList.end();
+    }
+
+    const_use_iterator use_begin() const {
+        return useList.begin();
+    }
+
+    const_use_iterator use_end() const {
+        return useList.end();
+    }
+
+    use_range uses() {
+        return make_range(use_begin(), use_end());
+    }
+
+    const_use_range uses() const {
+        return make_range(use_begin(), use_end());
+    }
+
+    Use *front() {
+        return &useList.front();
+    }
+
+    const Use *front() const {
+        return &useList.front();
+    }
+
+    Use *back() {
+        return &useList.back();
+    }
+
+    const Use *back() const {
+        return &useList.back();
+    }
+
+    bool empty() const {
+        return useList.empty();
+    }
 
     /// Change all uses of this to point to a new Value.
     ///
@@ -156,8 +218,12 @@ public:
     /// guaranteed to be empty.
     void replaceAllUsesWith (Value *V);
 
-    // a liked list that tracks who uses this value
-    dlist<Use> useList;
+    IR::Type *type;
+    std::string name;
+    const unsigned subclassID;
+
+    // a linked list that tracks who uses this value
+    useListType useList;
 };
 
 

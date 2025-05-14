@@ -7,8 +7,43 @@
 
 namespace IR{
 
-static bool isAllocaPromotable(AllocaInst *AI) {
-    return 
+bool isAllocaPromotable(const AllocaInst *AI) {
+  // Only allow direct and non-volatile loads and stores...
+    for (const Use *U : AI->uses()) {
+        Value *user = U->getUser();
+        if (const LoadInst *LI = dyn_cast<LoadInst>(user)) {
+            // Note that atomic loads can be transformed; atomic semantics do
+            // not have any meaning for a local alloca.
+            // if (LI->isVolatile())
+            return true;
+        } else if (const StoreInst *SI = dyn_cast<StoreInst>(user)) {
+        if (SI->getValueOperand() == AI ||
+            SI->getValueOperand()->getType() != AI->getAllocatedType())
+            return false; // Don't allow a store OF the AI, only INTO the AI.
+        // Note that atomic stores can be transformed; atomic semantics do
+        // not have any meaning for a local alloca.
+        // if (SI->isVolatile())
+        //     return false;
+        } else if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(U)) {
+        if (!II->isLifetimeStartOrEnd() && !II->isDroppable())
+            return false;
+        } else if (const BitCastInst *BCI = dyn_cast<BitCastInst>(U)) {
+        if (!onlyUsedByLifetimeMarkersOrDroppableInsts(BCI))
+            return false;
+        } else if (const GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(U)) {
+        if (!GEPI->hasAllZeroIndices())
+            return false;
+        if (!onlyUsedByLifetimeMarkersOrDroppableInsts(GEPI))
+            return false;
+        } else if (const AddrSpaceCastInst *ASCI = dyn_cast<AddrSpaceCastInst>(U)) {
+        if (!onlyUsedByLifetimeMarkers(ASCI))
+            return false;
+        } else {
+        return false;
+        }
+    }
+
+    return true;
 }
 
 static bool promoteMemoryToRegister(Function &F) {

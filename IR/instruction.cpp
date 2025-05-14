@@ -25,7 +25,7 @@ void Instruction::setOperand(Value* v, size_t i) {
         auto use = new Use(v, this);
 
 
-        uses[i] = use;
+        operandList[i] = use;
         v->addUse(use);
     }
 }
@@ -35,7 +35,7 @@ Value *Instruction::getOperand(size_t i) const {
         std::cout << "getOperand Fail\n";
         exit(1);
     } else {
-        return uses[i]->val;
+        return operandList[i]->val;
     }
 }
 
