@@ -258,6 +258,8 @@ struct dlist : public Traits {
         
         pos.cur->insert_before(node);
         _size++;
+
+        // callback function
         addNodeToList(node);
         return iterator(node);
     }

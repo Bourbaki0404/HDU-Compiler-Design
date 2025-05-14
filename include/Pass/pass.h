@@ -15,11 +15,15 @@ public:
 class ModulePass : public Pass {
 public:
     virtual bool runOnModule(Module &M) = 0;
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const = 0;
+
+    // template<typename AnalysisType>
+    // void getAnalysis(AnalysisType &AU) const;
 };
 
 class FunctionPass : public Pass {
 public:
     virtual bool runOnFunction(Function &F) = 0;
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const = 0;
+
+    // template<typename AnalysisType>
+    // void getAnalysis(AnalysisType &AU) const;
 };

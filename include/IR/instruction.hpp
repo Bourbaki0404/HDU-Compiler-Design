@@ -87,7 +87,10 @@ struct Instruction : public Value, public dlist_node<Instruction> {
     static std::string getOpcodeName(size_t OpCode);
     std::string getOpcodeName() const { return getOpcodeName(getOpcode()); }
 
-
+    /// Create new use,  
+    /// 1. push the pointer to it into the vector. 
+    /// 2. insert the use to the uselist of the Value
+    /// User only have the pointer to the use, not the use itself!
     void setOperand(Value* v, size_t i);
     Value *getOperand(size_t i) const;
     size_t getNumOperands() const { return numOperands; }
