@@ -29,6 +29,9 @@ TYPES_DIR = ./type
 SYMTABLE_DIR = ./symbolTable
 CODEGEN_DIR = ./codeGen
 IR_DIR = ./IR
+PASS_DIR = ./Pass
+TRANSFORM_DIR = ./Transform
+ANALYSIS_DIR = ./Analysis
 SRC_DIR = .
 BUILD_DIR = ./build
 
@@ -41,9 +44,13 @@ TYPES_SOURCES = $(wildcard $(TYPES_DIR)/*.cpp)
 SYMTABLE_SOURCES = $(wildcard $(SYMTABLE_DIR)/*.cpp)
 CODEGEN_SOURCES = $(wildcard $(CODEGEN_DIR)/*.cpp)
 IR_SOURCES = $(wildcard $(IR_DIR)/*.cpp)
+PASS_SOURCES = $(wildcard $(PASS_DIR)/*.cpp)
+TRANSFORM_SOURCES = $(wildcard $(TRANSFORM_DIR)/*.cpp)
+ANALYSIS_SOURCES = $(wildcard $(ANALYSIS_DIR)/*.cpp)
 
 SOURCES = $(MAIN_SOURCE) $(LEXER_SOURCES) $(PARSER_SOURCES) $(AST_SOURCES) \
-          $(TYPES_SOURCES) $(SYMTABLE_SOURCES) $(CODEGEN_SOURCES) $(IR_SOURCES)
+          $(TYPES_SOURCES) $(SYMTABLE_SOURCES) $(CODEGEN_SOURCES) $(IR_SOURCES) \
+          $(PASS_SOURCES) $(TRANSFORM_SOURCES) $(ANALYSIS_SOURCES)
 
 # Object files
 OBJECTS = $(BUILD_DIR)/main.o \
@@ -53,7 +60,10 @@ OBJECTS = $(BUILD_DIR)/main.o \
           $(patsubst $(TYPES_DIR)/%.cpp,$(BUILD_DIR)/types/%.o,$(TYPES_SOURCES)) \
           $(patsubst $(SYMTABLE_DIR)/%.cpp,$(BUILD_DIR)/symbolTable/%.o,$(SYMTABLE_SOURCES)) \
           $(patsubst $(CODEGEN_DIR)/%.cpp,$(BUILD_DIR)/codegen/%.o,$(CODEGEN_SOURCES)) \
-          $(patsubst $(IR_DIR)/%.cpp,$(BUILD_DIR)/IR/%.o,$(IR_SOURCES))
+          $(patsubst $(IR_DIR)/%.cpp,$(BUILD_DIR)/IR/%.o,$(IR_SOURCES)) \
+          $(patsubst $(PASS_DIR)/%.cpp,$(BUILD_DIR)/Pass/%.o,$(PASS_SOURCES)) \
+          $(patsubst $(TRANSFORM_DIR)/%.cpp,$(BUILD_DIR)/Transform/%.o,$(TRANSFORM_SOURCES)) \
+          $(patsubst $(ANALYSIS_DIR)/%.cpp,$(BUILD_DIR)/Analysis/%.o,$(ANALYSIS_SOURCES))
 
 # Targets
 .PHONY: all clean compiler test
@@ -62,12 +72,14 @@ all: compiler
 
 # Create build directory structure
 $(BUILD_DIR)/lexer $(BUILD_DIR)/parser $(BUILD_DIR)/astnode $(BUILD_DIR)/types \
-$(BUILD_DIR)/symbolTable $(BUILD_DIR)/codegen $(BUILD_DIR)/IR:
+$(BUILD_DIR)/symbolTable $(BUILD_DIR)/codegen $(BUILD_DIR)/IR $(BUILD_DIR)/Pass \
+$(BUILD_DIR)/Transform $(BUILD_DIR)/Analysis:
 	mkdir -p $@
 
 # Main compiler executable
 compiler: $(BUILD_DIR)/lexer $(BUILD_DIR)/parser $(BUILD_DIR)/astnode \
           $(BUILD_DIR)/types $(BUILD_DIR)/symbolTable $(BUILD_DIR)/codegen $(BUILD_DIR)/IR \
+          $(BUILD_DIR)/Pass $(BUILD_DIR)/Transform $(BUILD_DIR)/Analysis \
           $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $(BUILD_DIR)/compiler $(OBJECTS) $(LDFLAGS)
 
@@ -101,6 +113,18 @@ $(BUILD_DIR)/codegen/%.o: $(CODEGEN_DIR)/%.cpp
 
 # IR
 $(BUILD_DIR)/IR/%.o: $(IR_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Pass Framework
+$(BUILD_DIR)/Pass/%.o: $(PASS_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Transform Passes
+$(BUILD_DIR)/Transform/%.o: $(TRANSFORM_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Analysis Passes
+$(BUILD_DIR)/Analysis/%.o: $(ANALYSIS_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Test target

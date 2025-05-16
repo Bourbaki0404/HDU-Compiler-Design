@@ -134,7 +134,7 @@ BinaryOp::BinaryOp(BinaryOpKind kind, Type* ty, Value* lhs, Value* rhs, const st
     }
     this->setOperand(lhs, 0);
     this->setOperand(rhs, 1);
-    this->name = name;
+    this->setName(name);    
 }
 
 IR::UnaryOp::UnaryOp(UnaryOpKind kind, Type *ty, Value *operand, const std::string &name) 
@@ -189,6 +189,28 @@ BranchInst::BranchInst(BasicBlock *IfTrue, BasicBlock *IfFalse, Value *Cond)
     this->setOperand(IfTrue, 0);
     this->setOperand(IfFalse, 1);
     this->setOperand(Cond, 2);
+}
+
+
+AllocaInst::AllocaInst(Type* ty, const std::string& name)
+: Instruction(ty->getPointerTo(), ALLOCA, 0) {
+    this->allocatedTy = ty;
+}
+
+LoadInst::LoadInst(Type* ty, Value* ptr, const std::string& name)
+: Instruction(ty, LOAD, 1) {
+    __assert__(ptr->getType()->isPointerTy(), "LoadInst: pointer is not a pointer");
+    __assert__(ty->equals(dyn_cast<PointerType>(ptr->getType())->getElementType()), "LoadInst: pointee type mismatch");
+    this->setOperand(ptr, 0);
+    this->setName(name);
+}
+
+StoreInst::StoreInst(Value* val, Value* ptr)
+: Instruction(Type::getVoidTy(), STORE, 2) {
+    __assert__(val->getType()->isPointerTy(), "StoreInst: value is not a pointer");
+    __assert__(dyn_cast<PointerType>(ptr->getType())->getElementType()->equals(val->getType()), "StoreInst: pointee type mismatch"); // might not 
+    this->setOperand(val, 0);
+    this->setOperand(ptr, 1);
 }
 
 ReturnInst::ReturnInst(Value *retVal)

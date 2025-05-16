@@ -1,52 +1,57 @@
-#include "include/Transform/Mem2Reg.h"
-#include "include/IR/Function.hpp"
-#include "include/IR/basicBlock.hpp"
-#include "include/IR/instruction.hpp"
-#include "include/IR/Cast.hpp"
-#include "include/IR/utils.hpp"
+#include "Transform/Mem2Reg.h"
+#include "IR/Function.hpp"
+#include "IR/basicBlock.hpp"
+#include "IR/instruction.hpp"
+#include "IR/Cast.hpp"
+#include "IR/utils.hpp"
+#include "Analysis/DominatorTree.h"
 
 namespace IR{
 
+
+
+// Variables with no aliases are trivial register promotion candidates.
+// A scalar variable can have aliases whenever its address is taken, or if it is a global variable, since it can be accessed by function calls.
+// We employ naive strategy to check if the alloca is used by a instruction other than load or store.
+// We assume that all memory variables are nonvolatile.
 bool isAllocaPromotable(const AllocaInst *AI) {
-  // Only allow direct and non-volatile loads and stores...
-    for (const Use *U : AI->uses()) {
-        Value *user = U->getUser();
-        if (const LoadInst *LI = dyn_cast<LoadInst>(user)) {
-            // Note that atomic loads can be transformed; atomic semantics do
-            // not have any meaning for a local alloca.
-            // if (LI->isVolatile())
-            return true;
-        } else if (const StoreInst *SI = dyn_cast<StoreInst>(user)) {
+    for (const Instruction *I : AI->uses()) {
+        if (const LoadInst *LI = dyn_cast<LoadInst>(I)) {
+            continue;
+        } else if (const StoreInst *SI = dyn_cast<StoreInst>(I)) {
         if (SI->getValueOperand() == AI ||
             SI->getValueOperand()->getType() != AI->getAllocatedType())
             return false; // Don't allow a store OF the AI, only INTO the AI.
-        // Note that atomic stores can be transformed; atomic semantics do
-        // not have any meaning for a local alloca.
-        // if (SI->isVolatile())
-        //     return false;
-        } else if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(U)) {
-        if (!II->isLifetimeStartOrEnd() && !II->isDroppable())
-            return false;
-        } else if (const BitCastInst *BCI = dyn_cast<BitCastInst>(U)) {
-        if (!onlyUsedByLifetimeMarkersOrDroppableInsts(BCI))
-            return false;
-        } else if (const GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(U)) {
-        if (!GEPI->hasAllZeroIndices())
-            return false;
-        if (!onlyUsedByLifetimeMarkersOrDroppableInsts(GEPI))
-            return false;
-        } else if (const AddrSpaceCastInst *ASCI = dyn_cast<AddrSpaceCastInst>(U)) {
-        if (!onlyUsedByLifetimeMarkers(ASCI))
-            return false;
-        } else {
-        return false;
+            // Note that atomic stores can be transformed; atomic semantics do
+            // not have any meaning for a local alloca.
         }
     }
-
     return true;
 }
 
-static bool promoteMemoryToRegister(Function &F) {
+void Mem2Reg::PromoteMemToReg(std::vector<AllocaInst *> &Allocas) {
+    for (AllocaInst *AI : Allocas) {
+
+        // Collect alloca info
+        for(const Instruction *I : AI->uses()) {
+            if(LoadInst *LI = dyn_cast<LoadInst>(I)) {
+                allocaInfoMap[AI].DefBlocks.push_back(LI->getParent());
+            } else if(StoreInst *SI = dyn_cast<StoreInst>(I)) {
+                allocaInfoMap[AI].UseBlocks.push_back(SI->getParent());
+            }
+        }
+
+        // Insert PHI nodes at the beginning of the block
+        insertPHINodes(AI);
+
+
+
+
+
+    }
+}
+
+bool Mem2Reg::promoteMemoryToRegister(Function &F) {
     std::vector<AllocaInst *> Allocas;
     BasicBlock &BB = F.getEntryBlock(); // Get the entry node for the function
     bool Changed = false;
@@ -64,16 +69,55 @@ static bool promoteMemoryToRegister(Function &F) {
         if (Allocas.empty())
         break;
 
-        // PromoteMemToReg(Allocas);
+        PromoteMemToReg(Allocas);
         // std::cout << "Promoted " << Allocas.size() << " allocas" << std::endl;
         Changed = true;
     }
     return Changed;
 }
 
+// See SSA book Algorithm 3.1: Standard algorithm for inserting φ-functions
+void Mem2Reg::insertPHINodes(AllocaInst *AI) {
+    std::unordered_set<BasicBlock *> F; // Flag set for visited blocks
+    std::unordered_set<BasicBlock *> WorkingList;
+
+    // Get dominator tree analysis result
+    DominatorTreeResult *DTResult = getAnalysis<DominatorTree>();
+    if (!DTResult) {
+        __assert__(false, "Failed to get DominatorTree analysis");
+        return;
+    }
+
+    // Initialize the working list with the blocks that define the alloca
+    for(BasicBlock *BB : allocaInfoMap[AI].DefBlocks) {
+        WorkingList.insert(BB);
+    }
+
+    while(!WorkingList.empty()) {
+        BasicBlock *BB = *WorkingList.begin();
+        WorkingList.erase(BB);
+        F.insert(BB);
+
+        // Iterate over the dominator frontier of BB
+        const auto &DomFrontiers = DTResult->getDomFrontiers();
+        auto DF = DomFrontiers.find(BB);
+        if (DF != DomFrontiers.end()) {
+            for (BasicBlock *Y : DF->second) {
+                if (F.find(Y) == F.end()) {
+                    // TODO: Insert PHI node in Y if needed
+                    // For now we'll just add it to the working list
+                    WorkingList.insert(Y);
+                }
+            }
+        }
+    }
+}
 
 
 bool Mem2Reg::runOnFunction(Function &F) {
+    // We need the dominator tree for this pass
+    getPassManager()->run<DominatorTree>(F);
+    
     return promoteMemoryToRegister(F);
 }
 

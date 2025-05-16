@@ -47,10 +47,18 @@ static bool getSymTab(Value *V, ValueSymbolTable *&ST) {
     return true;
 }
 
-void Value::replaceAllUsesWith(Value *V) {
-	for(Use &U : useList) {
-		U.val = V;
-	}
+// void Value::replaceAllUsesWith(Value *V) {
+// 	for(Use &U : useList) {
+// 		U.val = V;
+// 	}
+// }
+
+unsigned Use::getOperandNo() const {
+    for(unsigned i = 0; i < inst->getNumOperands(); i++) {
+        if(inst->getOperand(i) == val) {
+            return i;
+        }
+    }
 }
 
 void Value::setName(const std::string &Name) {

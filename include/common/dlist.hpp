@@ -43,6 +43,10 @@ struct dlist_node {
             return tmp;
         }
 
+        bool atEnd() const {
+            return cur->isDummy();
+        }
+
         bool operator!=(const iterator &other) const { return cur != other.cur; }
         bool operator==(const iterator &other) const { return cur == other.cur; }
     };
@@ -65,6 +69,10 @@ struct dlist_node {
             iterator tmp = *this;
             ++(*this);
             return tmp;
+        }
+
+        bool atEnd() const {
+            return cur->isDummy();
         }
 
         reference operator*() const { return (reference)(*cur); }
@@ -99,6 +107,10 @@ struct dlist_node {
             return tmp;
         }
 
+        bool atEnd() const {
+            return cur->isDummy();
+        }
+
         bool operator!=(const reverse_iterator &other) const { return cur != other.cur; }
         bool operator==(const reverse_iterator &other) const { return cur == other.cur; }
     };
@@ -128,11 +140,23 @@ struct dlist_node {
             return tmp;
         }
 
+        bool atEnd() const {
+            return cur->isDummy();
+        }
+
         bool operator!=(const const_reverse_iterator &other) const { return cur != other.cur; }
         bool operator==(const const_reverse_iterator &other) const { return cur == other.cur; }
     };
 
     iterator getIterator() { return iterator(this); }
+
+    void setIsDummy(bool isDummy) {
+        this->isDummy_ = isDummy;
+    }
+
+    bool isDummy() const {
+        return isDummy_;
+    }
 
 protected:
     // this method can only be used in class dlist
@@ -156,6 +180,10 @@ protected:
         prev = nullptr;
         next = nullptr;
     }
+private:
+
+    // To indicate if the node is at end of the list
+    bool isDummy_ = false;
 };
 
 template <typename T>
@@ -179,6 +207,7 @@ struct dlist : public Traits {
         dummy_head = new nodeType;
         dummy_head->next = dummy_head;
         dummy_head->prev = dummy_head;
+        dummy_head->setIsDummy(true);
         _size = 0;
     }
     

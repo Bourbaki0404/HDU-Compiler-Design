@@ -36,10 +36,8 @@
 int div(int a, int b){
   // return a/b;
   int c[3] = {1, 2, 3};
-  while(c[1] > 1) {
-    return c[2 + a];
-  }
-  return 1 + c[1] - 2;
+  int d = c[1];
+  return d;
 }
 
 int main(){ 

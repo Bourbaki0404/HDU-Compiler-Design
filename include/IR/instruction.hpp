@@ -99,6 +99,7 @@ struct Instruction : public Value, public dlist_node<Instruction> {
     /// 2. insert the use to the uselist of the Value
     /// User only have the pointer to the use, not the use itself!
     void setOperand(Value* v, size_t i);
+
     Value *getOperand(size_t i) const;
     size_t getNumOperands() const { return numOperands; }
         // Non-copyable
@@ -318,8 +319,27 @@ struct LoadInst : public Instruction {
     }
 };
 
+// Use operandList to manage all the operands
+// Value of void type can have no name
 struct StoreInst : public Instruction {
     StoreInst(Value* val, Value* ptr);
+
+    Value *getValueOperand() {
+        return getOperand(0);
+    }
+
+    const Value *getValueOperand() const {
+        return getOperand(0);
+    }
+
+    Value *getPointerOperand() {
+        return getOperand(1);
+    }
+
+    const Value *getPointerOperand() const {
+        return getOperand(1);
+    }
+
     static bool classof(const Instruction *I) {
         return I->getOpcode() == Instruction::STORE;
     }
@@ -329,7 +349,7 @@ struct StoreInst : public Instruction {
 };
 
 /// Conditional or Unconditional Branch instruction.
-///
+/// Value of void type can have no name
 struct BranchInst : public Instruction {
     BranchInst(BasicBlock *IfTrue);
     BranchInst(BasicBlock *IfTrue, BasicBlock *IfFalse, Value *Cond);
@@ -409,9 +429,6 @@ struct ReturnInst : public Instruction {
 
 struct CallInst : public Instruction {
     CallInst(Type *ty, Value *callee, const std::string& name = "");
-    static bool classof(const Instruction *I) {
-        return (I->getOpcode() == Instruction::CALL);
-    }
 
 
     // For isa and dyn_cast
@@ -429,9 +446,6 @@ struct CallInst : public Instruction {
 // scientist's overactive imagination.
 struct PHINode : public Instruction {
     PHINode(Type *ty, const std::string& name = "");
-    static bool classof(const Instruction *I) {
-        return (I->getOpcode() == Instruction::PHI);
-    }
 
     void setIncomingValue(unsigned i, Value *V);
     Value *getIncomingValue(unsigned i) const;
@@ -441,11 +455,13 @@ struct PHINode : public Instruction {
 
     void replaceIncomingBlockWith(BasicBlock *Old, BasicBlock *New);
 
-      /// Methods for support type inquiry through isa, cast, and dyn_cast:
+
+
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static bool classof(const Instruction *I) {
         return I->getOpcode() == Instruction::PHI;
     }
-    static bool classof(const Value *V) {
+    static bool classof(Value *V) {
         return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
     }
 };

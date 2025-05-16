@@ -65,8 +65,6 @@ struct Function : public GlobalObject, public dlist_node<Function> {
 	iterator                end  ()       { return basic_blocks.end();   }
 	const_iterator          end  () const { return basic_blocks.end();   }
 
-
-	size_t      	  size()  const { return basic_blocks.size(); }
 	bool        	  empty() const { return basic_blocks.empty(); }
 	const BasicBlock &front() const { return basic_blocks.front(); }
 	BasicBlock       &front()       { return basic_blocks.front(); }

@@ -2,7 +2,7 @@
 #include "common/common.hpp"
 #include "common/dlist.hpp"
 #include "IR/Type.hpp"
-
+#include "common/iterator_range.hpp"
 namespace IR
 {
 
@@ -29,13 +29,8 @@ struct Use : public dlist_node<Use>{
         remove_self();
     }
 
-    // get the usee
-    Value *getUser() const {
-        return val;
-    }
-
     // get the user
-    Instruction *getInst() const {
+    Instruction *getUser() const {
         return inst;
     }
 
@@ -43,6 +38,9 @@ struct Use : public dlist_node<Use>{
     Value *getUsee() const {
         return val;
     }
+
+    /// Return the operand # of this use in its User.
+    unsigned getOperandNo() const ;
     
     Value *val; // the usee
     Instruction *inst; // the user
@@ -162,25 +160,88 @@ public:
     // }
 
     using useListType = dlist<Use>;
-    using use_iterator = useListType::iterator;
-    using const_use_iterator = useListType::const_iterator;
+
+    class use_iterator {
+        private:
+            using dlist_iterator = typename dlist<Use>::iterator;
+            dlist_iterator it;
+            
+        public:
+            using iterator_category = std::forward_iterator_tag;
+            using value_type = Instruction;
+            using pointer = Instruction*;
+            using reference = Instruction&;
+            
+            use_iterator() = default;
+            use_iterator(dlist_iterator _it) : it(_it) {}
+            
+            pointer operator*() const { return it->getUser(); }
+            pointer operator->() const { return it->getUser(); }
+            
+            use_iterator& operator++() { ++it; return *this; }
+            use_iterator operator++(int) { use_iterator tmp = *this; ++(*this); return tmp; }
+
+            Use *getUse() const {
+                return &*it;
+            }
+
+            bool atEnd() const {
+                return it.atEnd();
+            }
+            
+            bool operator==(const use_iterator& other) const { return it == other.it; }
+            bool operator!=(const use_iterator& other) const { return !(*this == other); }
+    };
+
+    class const_use_iterator {
+        private:
+            using dlist_iterator = typename dlist<Use>::const_iterator;
+            dlist_iterator it;
+            
+        public:
+            using iterator_category = std::forward_iterator_tag;
+            using value_type = const Instruction;
+            using pointer = const Instruction*;
+            using reference = const Instruction&;
+
+            const_use_iterator() = default;
+            const_use_iterator(dlist_iterator _it) : it(_it) {}
+
+            pointer operator*() const { return it->getUser(); }
+            pointer operator->() const { return it->getUser(); }
+            
+            const_use_iterator& operator++() { ++it; return *this; }
+            const_use_iterator operator++(int) { const_use_iterator tmp = *this; ++(*this); return tmp; }
+
+            const Use *getUse() const {
+                return &*it;
+            }   
+
+            bool atEnd() const {
+                return it.atEnd();
+            }
+            
+            bool operator==(const const_use_iterator& other) const { return it == other.it; }
+            bool operator!=(const const_use_iterator& other) const { return !(*this == other); }
+    };  
+
     using use_range = iterator_range<use_iterator>;
     using const_use_range = iterator_range<const_use_iterator>;
 
     use_iterator use_begin() {
-        return useList.begin();
+        return use_iterator(useList.begin());
     }
 
     use_iterator use_end() {
-        return useList.end();
+        return use_iterator(useList.end());
     }
 
     const_use_iterator use_begin() const {
-        return useList.begin();
+        return const_use_iterator(useList.begin());
     }
 
     const_use_iterator use_end() const {
-        return useList.end();
+        return const_use_iterator(useList.end());
     }
 
     use_range uses() {

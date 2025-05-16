@@ -36,26 +36,26 @@ void BasicBlock::removeFromParent() {
     }
 }
 
-void BasicBlock::replacePhiUsesWith(BasicBlock *Old, BasicBlock *New) {
-    // N.B. This might not be a complete BasicBlock, so don't assume
-    // that it ends with a non-phi instruction.
-    for (Instruction &I : *this) {
-        PHINode *PN = dyn_cast<PHINode>(&I);
-        if (!PN)
-        break;
-        PN->replaceIncomingBlockWith(Old, New);
-    }
-}
+// void BasicBlock::replacePhiUsesWith(BasicBlock *Old, BasicBlock *New) {
+//     // N.B. This might not be a complete BasicBlock, so don't assume
+//     // that it ends with a non-phi instruction.
+//     for (Instruction &I : *this) {
+//         PHINode *PN = dyn_cast<PHINode>(&I);
+//         if (!PN)
+//         break;
+//         PN->replaceIncomingBlockWith(Old, New);
+//     }
+// }
 
 
-void BasicBlock::replaceSuccessorsPhiUsesWith(BasicBlock *Old,
-                                              BasicBlock *New) {
-    Instruction *TI = getTerminator();
-    if (!TI)
-        return;
-    for (BasicBlock *Succ : successors(TI))
-        Succ->replacePhiUsesWith(Old, New);
-}
+// void BasicBlock::replaceSuccessorsPhiUsesWith(BasicBlock *Old,
+//                                               BasicBlock *New) {
+//     Instruction *TI = getTerminator();
+//     if (!TI)
+//         return;
+//     for (BasicBlock *Succ : successors(TI))
+//         Succ->replacePhiUsesWith(Old, New);
+// }
 
 void BasicBlock::setParent(struct Function *parent) {
     this->parent = parent;

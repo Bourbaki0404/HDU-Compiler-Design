@@ -14,43 +14,12 @@ class BasicBlock;
 class Instruction;
 class Use;
 
-/// Iterator for users
-template <typename _ValueTy>
-class user_iterator {
-private:
-    using dlist_iterator = typename dlist<Use>::iterator;
-    dlist_iterator it;
-    
-public:
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = _ValueTy;
-    using pointer = _ValueTy*;
-    using reference = _ValueTy*;
-    
-    user_iterator() = default;
-    user_iterator(dlist_iterator _it) : it(_it) {}
-    
-    bool atEnd() const { return it == dlist_iterator(); }
-    
-    reference operator*() const { return static_cast<reference>((*it)->inst); }
-    pointer operator->() const { return static_cast<pointer>((*it)->inst); }
-    
-    user_iterator& operator++() { ++it; return *this; }
-    user_iterator operator++(int) { user_iterator tmp = *this; ++(*this); return tmp; }
-    
-    bool operator==(const user_iterator& other) const { return it == other.it; }
-    bool operator!=(const user_iterator& other) const { return !(*this == other); }
-    
-    unsigned getOperandNo() const { 
-        // In a real implementation, you'd look up the operand number
-        return 0; 
-    }
-    
-    Use& getUse() const { return **it; }
-};
+/// This includes generic facilities for
+/// iterating successors and predecessors of basic blocks, the successors of
+/// specific terminator instructions, etc.
 
 /// BasicBlock pred_iterator implementation
-template <class Ptr>
+template <class Ptr, class UseIterator>
 class PredIterator {
 public:
     using iterator_category = std::forward_iterator_tag;
@@ -58,11 +27,11 @@ public:
     using difference_type = std::ptrdiff_t;
     using pointer = Ptr *;
     using reference = Ptr *;
-    using USE_iterator = user_iterator<Instruction>;
+    using use_iterator = UseIterator;
 
 private:
     using Self = PredIterator<Ptr>;
-    USE_iterator It;
+    use_iterator It;
 
     inline void advancePastNonTerminators() {
         // Loop to ignore non-terminator uses
@@ -77,25 +46,23 @@ private:
 public:
     PredIterator() = default;
     explicit inline PredIterator(Ptr *bb) 
-        : It(bb->useList.begin()) {
+        : It(bb->use_begin()) {
         advancePastNonTerminators();
     }
     
     inline PredIterator(Ptr *bb, bool) 
-        : It(bb->useList.end()) {}
+        : It(bb->use_end()) {}
 
     inline bool operator==(const Self& x) const { return It == x.It; }
     inline bool operator!=(const Self& x) const { return !operator==(x); }
 
     inline reference operator*() const {
-        __assert__(!It.atEnd(), "pred_iterator out of range!");
         return dyn_cast<Instruction>(*It)->getParent();
     }
     
     inline pointer *operator->() const { return &operator*(); }
 
     inline Self& operator++() {
-        __assert__(!It.atEnd(), "pred_iterator out of range!");
         ++It; 
         advancePastNonTerminators();
         return *this;
@@ -107,6 +74,7 @@ public:
         return tmp;
     }
 
+    // get the operand # of the use
     unsigned getOperandNo() const {
         return It.getOperandNo();
     }

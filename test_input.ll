@@ -9,40 +9,17 @@ target triple = "x86_64-pc-linux-gnu"
 define dso_local noundef i32 @_Z3divii(i32 noundef %0, i32 noundef %1) #0 {
   %3 = alloca i32, align 4
   %4 = alloca i32, align 4
-  %5 = alloca i32, align 4
-  %6 = alloca [3 x i32], align 4
-  store i32 %0, i32* %4, align 4
-  store i32 %1, i32* %5, align 4
-  %7 = bitcast [3 x i32]* %6 to i8*
+  %5 = alloca [3 x i32], align 4
+  %6 = alloca i32, align 4
+  store i32 %0, i32* %3, align 4
+  store i32 %1, i32* %4, align 4
+  %7 = bitcast [3 x i32]* %5 to i8*
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 4 %7, i8* align 4 bitcast ([3 x i32]* @__const._Z3divii.c to i8*), i64 12, i1 false)
-  br label %8
-
-8:                                                ; preds = %2
-  %9 = getelementptr inbounds [3 x i32], [3 x i32]* %6, i64 0, i64 1
-  %10 = load i32, i32* %9, align 4
-  %11 = icmp sgt i32 %10, 1
-  br i1 %11, label %12, label %18
-
-12:                                               ; preds = %8
-  %13 = load i32, i32* %4, align 4
-  %14 = add nsw i32 2, %13
-  %15 = sext i32 %14 to i64
-  %16 = getelementptr inbounds [3 x i32], [3 x i32]* %6, i64 0, i64 %15
-  %17 = load i32, i32* %16, align 4
-  store i32 %17, i32* %3, align 4
-  br label %23
-
-18:                                               ; preds = %8
-  %19 = getelementptr inbounds [3 x i32], [3 x i32]* %6, i64 0, i64 1
-  %20 = load i32, i32* %19, align 4
-  %21 = add nsw i32 1, %20
-  %22 = sub nsw i32 %21, 2
-  store i32 %22, i32* %3, align 4
-  br label %23
-
-23:                                               ; preds = %18, %12
-  %24 = load i32, i32* %3, align 4
-  ret i32 %24
+  %8 = getelementptr inbounds [3 x i32], [3 x i32]* %5, i64 0, i64 1
+  %9 = load i32, i32* %8, align 4
+  store i32 %9, i32* %6, align 4
+  %10 = load i32, i32* %6, align 4
+  ret i32 %10
 }
 
 ; Function Attrs: argmemonly nofree nounwind willreturn
