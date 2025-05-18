@@ -10,7 +10,7 @@ build/main.o: main.cpp include/lexer/lexer.hpp include/lexer/token.hpp \
   include/IR/IRBuilder.hpp include/IR/Function.hpp \
   include/IR/Globals.hpp include/IR/module.hpp include/IR/CFG.hpp \
   include/common/Graph.hpp include/Analysis/DominatorTree.hpp \
-  include/Pass/pass.h
+  include/Pass/pass.h include/Transform/Mem2Reg.hpp
 
 include/lexer/lexer.hpp:
 
@@ -67,3 +67,5 @@ include/common/Graph.hpp:
 include/Analysis/DominatorTree.hpp:
 
 include/Pass/pass.h:
+
+include/Transform/Mem2Reg.hpp:

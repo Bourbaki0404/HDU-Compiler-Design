@@ -48,3 +48,8 @@ Video: https://www.youtube.com/watch?v=AFaIP-dF-RA
 https://myhsu.xyz/llvm-codegen-legalization/
 > 4. LLVM Backend: https://sourcecodeartisan.com/2020/11/17/llvm-backend-4.html
 > 5. LLVM Note: https://blog.csdn.net/wuhui_gdnt?type=blog
+
+
+
+- Optimization
+> 1. Mem2Reg: 

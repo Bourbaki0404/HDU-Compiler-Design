@@ -7,6 +7,9 @@
 #include "IR/instruction.hpp"
 
 namespace IR {
+    struct Instruction;
+    struct BasicBlock;
+    struct Function;
 
 /**
  * LLVM assumes that all locals are introduced in the entry basic block of a function with an alloca instruction. LLVM also assumes that all allocas appear at the start of the entry block continuously. This assumption could be easily violated by the front-end, but it is a reasonable assumption to make.
@@ -30,9 +33,8 @@ namespace IR {
  * 1) A list of blocks which use it without defining it (live-in blocks or upward exposed blocks) are determined with the help of using and defining blocks created in Step 3.
  * 2) A priority queue keyed on dominator tree level is maintained so that inserted nodes corresponding to defining blocks are handled from the bottom of the dominator tree upwards. This is done by giving each block a level based on its position in the dominator tree.
  *
- * For each node — root, in the priority queue:
- * 1) Iterated dominance frontier of a definition is computed by walking all dominator tree children of root, inspecting their CFG edges with targets elsewhere on the dominator tree. Only targets whose level is at most root level are added to the iterated dominance frontier.
- * 2) PHI-nodes are inserted at the beginning in each block in the iterated dominance frontier computed in the previous step. There will be predecessor number of dummy argument to the PHI function at this point.
+ * 
+ * 
  *
  * Once all PHI-nodes are prepared, a rename phase start with a worklist containing just entry block as follows:
  * 1) A hash table of IncomingVals which is a map from a alloca to its most recent name is created. Most recent name of each alloca is an undef value to start with.
@@ -54,23 +56,68 @@ namespace IR {
 /// It is a wrapper of the promoteMemoryToRegister function
 class Mem2Reg : public FunctionPass {
 public:
+    Mem2Reg()
+    : DT(nullptr), dominanceFrontiers(), visitedBlocks(), allocaStackMap() {}
     bool runOnFunction(Function &F) override;
+
+    bool isAllocaPromotable(AllocaInst *AI);
 
 private:
     bool promoteMemoryToRegister(Function &F);
     void PromoteMemToReg(std::vector<AllocaInst *> &Allocas);
 
-    // SSA Construction
-    void insertPHINodes(AllocaInst *AI);
+    /// SSA Construction
+    /// Insert PHI nodes at the beginning of the iterative dominance frontiers of the defs of the memory variable
+    /// The operands of PHI nodes are not set until renaming phase
+    /// See Algorithm 3.1: Standard algorithm for inserting φ-functions in the SSA book
+    void insertPHINodes(AllocaInst *AI, BasicBlock *DF);
+
+
+
+    /// See https://www.cs.cornell.edu/courses/cs6120/2022sp/lesson/6/
+    void rename(Function &F);
+
+    void rename(BasicBlock *BB);
+
+private:
+    /// Compute the dominance frontier of the function
+    /// See Optimizing compiler for modern architectures, p188
+    /// OR https://www.cs.cmu.edu/afs/cs/academic/class/15745-s12/public/lectures/L13-SSA-Concepts-1up.pdf
+    /// Must be called after the dominator tree is set.
+    void computeDominanceFrontier(Function &F);
+
+    /// Recursively compute the dominance frontier of the block
+    void computeDominanceFrontier(BasicBlock *BB);
+
+    using DTResult = DominatorTreeResult;
+
+    /// Dominator tree, computed by the DominatorTreeWrapper pass
+    DTResult *DT = nullptr;
+
+    /// Map block to its dominance frontiers
+    std::unordered_map<BasicBlock *, std::unordered_set<BasicBlock *>> dominanceFrontiers;
+
+    /// Visited blocks in the dominance frontier computation
+    std::unordered_set<BasicBlock *> visitedBlocks;
 
 private:
     struct allocaInfo {
-        std::vector<BasicBlock *> DefBlocks;
-        std::vector<BasicBlock *> UseBlocks;
-    };  
-    
+        std::unordered_set<BasicBlock *> DefBlocks;
+        std::unordered_set<BasicBlock *> UseBlocks;
+    }; 
+
     using AllocaInfoMap = std::unordered_map<AllocaInst *, allocaInfo>;
     AllocaInfoMap allocaInfoMap;
+    std::vector<AllocaInst *> Allocas;
+
+    /// Mapping phi node to its corresponding memory variable
+    std::unordered_map<PHINode *, AllocaInst *> phiToAlloca;
+
+    /// stack for tracking the reaching defs
+    std::unordered_map<AllocaInst *, std::stack<Instruction *>> allocaStackMap;
+
+    /// visited blocks in the renaming phase
+    std::unordered_set<BasicBlock *> visitedDFSBlocks;
 };
 
 } // end namespace IR

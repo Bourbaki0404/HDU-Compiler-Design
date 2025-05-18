@@ -253,6 +253,10 @@ public:
         return make_range(use_begin(), use_end());
     }
 
+    size_t use_size() const {
+        return useList.size();
+    }
+
     Use *front() {
         return &useList.front();
     }

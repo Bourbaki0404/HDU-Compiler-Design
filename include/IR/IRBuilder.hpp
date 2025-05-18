@@ -40,9 +40,9 @@ struct IRBuilder {
 
     /// This specifies that created instructions should be inserted before
     /// the specified instruction.
-    void SetInsertPoint(Instruction *I) {
+    void setInsertPoint(Instruction *I) {
         BB = I->parent;
-        // InsertPt = I->getIterator();
+        InsertPt = I->getIterator();
         assert(InsertPt != BB->end() && "Can't read debug loc from end()");
     }
 
@@ -154,9 +154,15 @@ struct IRBuilder {
     // Value* IRBuilder::CreateGEP(Type* elementType, Value* basePtr, std::vector<Value*> indexes, const std::string& name);
 
     // // Memory ops
-    // Value* CreateAlloca(Type* ty, const std::string& name = "");
-    // Value* CreateLoad(Type* ty, Value* ptr, const std::string& name = "");
-    // Value* CreateStore(Value* val, Value* ptr);
+    AllocaInst* CreateAlloca(Type* ty, const std::string& name = "") {
+        return Insert(new AllocaInst(ty, name));
+    }
+    LoadInst* CreateLoad(Type* ty, Value* ptr, const std::string& name = "") {
+        return Insert(new LoadInst(ty, ptr, name));
+    }
+    StoreInst* CreateStore(Value* val, Value* ptr) {
+        return Insert(new StoreInst(val, ptr));
+    }
 
     // // Bit extension
     // Value *buildZExt(Value *operand, Type *toType, const std::string &name = "");
@@ -177,6 +183,10 @@ struct IRBuilder {
 
     Value* CreateRetVoid() {
         return Insert(new ReturnInst());
+    }
+
+    PHINode* CreatePHI(Type* ty, unsigned numReserved, const std::string& name = "") {
+        return Insert(new PHINode(ty, numReserved, name));
     }
 
     template<typename T, typename... Args>

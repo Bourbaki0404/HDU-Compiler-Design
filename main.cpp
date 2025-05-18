@@ -15,6 +15,8 @@
 #include "IR/CFG.hpp"
 #include "common/Graph.hpp"
 #include "Analysis/DominatorTree.hpp"
+#include "Transform/Mem2Reg.hpp"
+
 
 // #define GenerateParser
 
@@ -88,7 +90,23 @@ int (main) (int argc, char* argv[]) {
     
     // Entry block
     builder->setInsertPoint(entryBB);
+
+    /// insert alloca
+    IR::AllocaInst *AI = builder->CreateAlloca(intTy, "AI");
+    IR::AllocaInst *AI2 = builder->CreateAlloca(intTy, "AI2");
+    IR::AllocaInst *AI3 = builder->CreateAlloca(intTy, "AI3");
+
     auto intconst = IR::Constant::getIntegerValue(intTy, 2);
+    auto intconst2 = IR::Constant::getIntegerValue(intTy, 3);
+    auto intconst3 = IR::Constant::getIntegerValue(intTy, 4);
+    builder->CreateStore(intconst, AI);
+    builder->CreateStore(intconst2, AI2);
+    builder->CreateStore(intconst3, AI3);
+    IR::LoadInst *LI = builder->CreateLoad(intTy, AI, "LI");
+    IR::LoadInst *LI2 = builder->CreateLoad(intTy, AI2, "LI2");
+    IR::LoadInst *LI3 = builder->CreateLoad(intTy, AI3, "LI3");
+    builder->CreateAdd(intTy, LI, LI2, "add");
+
     auto v1 = builder->CreateAdd(intTy, intconst, intconst, "v1");
     auto cond1 = builder->CreateICmpEQ(v1, intconst, "cond1");
     builder->CreateCondBr(cond1, thenBB1, elseBB1);
@@ -123,9 +141,14 @@ int (main) (int argc, char* argv[]) {
 
     F->print();
 
-    IR::DominatorTreeWrapper *DT = new IR::DominatorTreeWrapper();
-    DT->runOnFunction(*F);
-    DT->getAnalysisResult()->dump();
-    // builder->
+    // IR::DominatorTreeWrapper *DT = new IR::DominatorTreeWrapper();
+    // DT->runOnFunction(*F);
+    // // DT->getAnalysisResult()->dump();
+
+    PassManager *PM = new PassManager();
+    IR::Mem2Reg *M2R = new IR::Mem2Reg();
+    M2R->setPassManager(PM);
+    M2R->runOnFunction(*F);
+    F->print();
     return 0;
 }

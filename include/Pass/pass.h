@@ -22,7 +22,17 @@ public:
 /// Base class for all IR passes
 class Pass {
 public:
+    Pass() = default;
+    Pass(const Pass &) = delete;
+    Pass &operator=(const Pass &) = delete;
     virtual ~Pass() = default;
+
+    /// Get analysis results from another pass
+    template<typename AnalysisType>
+    typename AnalysisType::Result *getAnalysisResult(IR::Function &F) const;
+
+    template<typename AnalysisType>
+    typename AnalysisType::Result *getAnalysisResult(IR::Module &M) const;
     
     /// Set the pass manager that owns this pass
     void setPassManager(PassManager *PM) { Manager = PM; }
@@ -36,9 +46,6 @@ public:
     /// Check if this is a function pass
     virtual bool isFunctionPass() const { return false; }
     
-    /// Get analysis results from another pass
-    template<typename AnalysisType>
-    typename AnalysisType::Result *getAnalysis() const;
 
 protected:
     PassManager *Manager = nullptr;
@@ -49,8 +56,9 @@ protected:
 /// interprocedural optimizations and analyses.  ModulePasses may do anything
 /// they want to the program.
 ///
-class ModulePass : public Pass {
+class ModulePass : virtual public Pass {
 public:
+    ModulePass() = default;
     virtual bool runOnModule(IR::Module &M) = 0;
 
     /// Override to identify as module pass
@@ -59,8 +67,9 @@ public:
 
 /// FunctionPass class - This class is used to implement most local optimizations.
 /// FunctionPasses only operate on a single function at a time.
-class FunctionPass : public Pass {
+class FunctionPass : virtual public Pass {
 public:
+    FunctionPass() = default;
     virtual bool runOnFunction(IR::Function &F) = 0;
 
     /// Override to identify as function pass
@@ -70,8 +79,9 @@ public:
 /// Analysis pass interface - All analysis passes should inherit from this
 /// and implement the getResult method
 template<typename ResultType>
-class AnalysisPass : public Pass {
+class AnalysisPass : virtual public Pass {
 public:
+    AnalysisPass() = default;
     using Result = ResultType;
     
     /// Get the result of this analysis pass
@@ -112,12 +122,12 @@ public:
         bool Changed = false;
         for (Pass *P : PassVector) {
             if (P->isModulePass()) {
-                Changed |= static_cast<ModulePass*>(P)->runOnModule(M);
+                Changed |= dynamic_cast<ModulePass*>(P)->runOnModule(M);
             } else if (P->isFunctionPass()) {
                 // Run function passes on each function in the module
                 // Note: We rely on the module providing a way to access functions
                 // This will need to be implemented based on your Module class
-                Changed |= runFunctionPassOnModule(static_cast<FunctionPass*>(P), M);
+                Changed |= runFunctionPassOnModule(dynamic_cast<FunctionPass*>(P), M);
             }
         }
         return Changed;
@@ -128,7 +138,7 @@ public:
         bool Changed = false;
         for (Pass *P : PassVector) {
             if (P->isFunctionPass()) {
-                Changed |= static_cast<FunctionPass*>(P)->runOnFunction(F);
+                Changed |= dynamic_cast<FunctionPass*>(P)->runOnFunction(F);
             }
             // Skip module passes when running on a single function
         }
@@ -137,14 +147,21 @@ public:
     
     /// Get analysis result from a pass
     template<typename AnalysisType>
-    typename AnalysisType::Result *getAnalysis() {
-        for (Pass *P : PassVector) {
-            if (AnalysisType *AP = dynamic_cast<AnalysisType*>(P)) {
-                return AP->getResult();
-            }
-        }
-        // Analysis not found in pass vector
-        return nullptr;
+    typename AnalysisType::Result *getAnalysisResult(IR::Function &F) {
+        AnalysisType *AP = new AnalysisType();
+        __assert__(AP->isFunctionPass(), "AnalysisType is not a function pass");
+        AP->setPassManager(this);
+        AP->runOnFunction(F);
+        return AP->getAnalysisResult();
+    }
+
+    template<typename AnalysisType>
+    typename AnalysisType::Result *getAnalysisResult(IR::Module &M) {
+        AnalysisType *AP = new AnalysisType();
+        __assert__(AP->isModulePass(), "AnalysisType is not a module pass");
+        AP->setPassManager(this);
+        AP->runOnModule(M);
+        return AP->getAnalysisResult();
     }
     
 private:
@@ -157,8 +174,14 @@ private:
 
 // Implementation of getAnalysis template method
 template<typename AnalysisType>
-typename AnalysisType::Result *Pass::getAnalysis() const {
+typename AnalysisType::Result *Pass::getAnalysisResult(IR::Function &F) const {
     __assert__(Manager, "Pass has no manager");
-    return Manager->getAnalysis<AnalysisType>();
+    return Manager->getAnalysisResult<AnalysisType>(F);
+}
+
+template<typename AnalysisType>
+typename AnalysisType::Result *Pass::getAnalysisResult(IR::Module &M) const {
+    __assert__(Manager, "Pass has no manager");
+    return Manager->getAnalysisResult<AnalysisType>(M);
 }
 

@@ -208,7 +208,6 @@ struct dlist : public Traits {
         dummy_head->next = dummy_head;
         dummy_head->prev = dummy_head;
         dummy_head->setIsDummy(true);
-        _size = 0;
     }
     
     // ~dlist() {
@@ -232,8 +231,7 @@ struct dlist : public Traits {
     using Traits::addNodeToList;
     using Traits::removeNodeFromList;
 
-    size_t size() const { return _size; }
-    bool empty() const { return _size == 0; }
+    bool empty() const { return begin() == end(); }
 
     reference front() {
         if (empty()) {
@@ -286,7 +284,6 @@ struct dlist : public Traits {
         }
         
         pos.cur->insert_before(node);
-        _size++;
 
         // callback function
         addNodeToList(node);
@@ -315,6 +312,15 @@ struct dlist : public Traits {
         return Node;
     }
 
+    /// use iteration to count the size of the list
+    size_t size() const { 
+        size_t count = 0;
+        for (auto it = begin(); it != end(); ++it) {
+            count++;
+        }
+        return count;
+    }
+
     void clear() {
 
     }
@@ -331,7 +337,5 @@ struct dlist : public Traits {
     const_reverse_iterator rend() const { return const_reverse_iterator(dummy_head); }
  
 private:
-
-    size_t _size;
     nodePtr dummy_head;
 };

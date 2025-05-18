@@ -14,10 +14,12 @@ Use::Use(Value* v, Instruction* i) : val(v), inst(i) {
 
 // }
 
-// void Value::replaceAllUsesWith(Value *V)
-// {
-
-// }
+void Value::replaceAllUsesWith(Value *V)
+{
+    for(Use &U : useList) {
+        U.val = V;
+    }
+}
 
 
 /// Get the symbol table associated with the value.

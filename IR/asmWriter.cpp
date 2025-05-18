@@ -55,7 +55,7 @@ void TypePrinting::print(Type *Ty) {
         case Type::typeKind::PointerTy: {
             auto *PTy = static_cast<PointerType*>(Ty);
             // Assume we have a method to get pointee type
-            Type *elementType = reinterpret_cast<Type*>(PTy->getSubclassData());
+            Type *elementType = PTy->getElementType();
             print(elementType);
             Out << '*';
             return;
@@ -407,16 +407,27 @@ void AsmWriter::printInstruction(const Instruction *inst) {
 	} else if (isa<ReturnInst>(inst) && !Operand) {
     	Out << " void"; 
 	} else if (Operand) {   // Print the normal way.
-		// if (const auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
-		// 	Out << ' ';
-		// 	TypePrinting::print(GEP->getSourceElementType());
-		// 	Out << ',';
-		// } else if (const auto *LI = dyn_cast<LoadInst>(&I)) {
-		// 	Out << ' ';
-		// 	TypePrinting::print(LI->getType());
-		// 	Out << ',';
-		// }
-
+		if (const auto *GEP = dyn_cast<GetElementPtrInst>(inst)) {
+			Out << ' ';
+			// TypePrinter->print(GEP->getSourceElementType());
+			Out << ',';
+		} else if(PHINode *PHI = dyn_cast<PHINode>(inst)) {
+			Out << ' ';
+			TypePrinter->print(PHI->getType());
+			Out << ',';
+			for(unsigned op = 0, Eop = PHI->getNumIncomingValues(); op < Eop; ++op) {
+				if(op) Out << ', ';
+				Out << "[ ";
+				writeOperand(PHI->getIncomingValue(op), false);
+				writeOperand(PHI->getIncomingBlock(op), false);
+				Out << " ]";
+			}
+		} else if (const auto *LI = dyn_cast<LoadInst>(inst)) {
+		} else if (const auto *LI = dyn_cast<LoadInst>(inst)) {
+			Out << ' ';
+			TypePrinter->print(LI->getType());
+			Out << ',';
+		}
 		// PrintAllTypes - Instructions who have operands of all the same type
 		// omit the type from all but the first operand.  If the instruction has
 		// different type operands (for example br), then they are all printed.
@@ -442,7 +453,6 @@ void AsmWriter::printInstruction(const Instruction *inst) {
 			Out << ' ';
 			TypePrinter->print(TheType);
 		}
-
 		Out << ' ';
 		for (unsigned i = 0, E = inst->getNumOperands(); i != E; ++i) {
 			if (i) Out << ", ";

@@ -220,7 +220,7 @@ LoadInst::LoadInst(Type* ty, Value* ptr, const std::string& name)
 
 StoreInst::StoreInst(Value* val, Value* ptr)
 : Instruction(Type::getVoidTy(), STORE, 2) {
-    __assert__(val->getType()->isPointerTy(), "StoreInst: value is not a pointer");
+    __assert__(ptr->getType()->isPointerTy(), "StoreInst: value is not a pointer");
     __assert__(dyn_cast<PointerType>(ptr->getType())->getElementType()->equals(val->getType()), "StoreInst: pointee type mismatch"); // might not 
     this->setOperand(val, 0);
     this->setOperand(ptr, 1);
@@ -233,6 +233,45 @@ ReturnInst::ReturnInst(Value *retVal)
 
 ReturnInst::ReturnInst()
 : Instruction(Type::getVoidTy(), RET, 0) {}
+
+
+PHINode::PHINode(Type *ty, size_t numReserved, const std::string& name)
+: Instruction(ty, PHI, numReserved << 1) {
+    this->setName(name);
+    this->reservedSpace = numReserved;
+    this->currentNumIncoming = 0;
+}
+
+void PHINode::setIncomingValue(unsigned i, Value *V) {
+    __assert__(i < getNumOperands() / 2, "PHINode::setIncomingValue: invalid operand index");
+    setOperand(V, i);
+}
+
+void PHINode::setIncomingBlock(unsigned i, BasicBlock *BB) {
+    __assert__(i >= getNumOperands() / 2, "PHINode::setIncomingBlock: invalid operand index");
+    setOperand(BB, i + reservedSpace);
+}
+
+Value *PHINode::getIncomingValue(unsigned i) const {
+    __assert__(i < getNumOperands() / 2, "PHINode::getIncomingValue: invalid operand index");
+    return getOperand(i);
+}
+
+BasicBlock *PHINode::getIncomingBlock(unsigned i) const {
+    __assert__(i >= getNumOperands() / 2, "PHINode::getIncomingBlock: invalid operand index");
+    BasicBlock *BB = dyn_cast<BasicBlock>(getOperand(i + reservedSpace));
+    __assert__(BB, "PHINode::getIncomingBlock: incoming block is nullptr");
+    return BB;
+}
+
+void PHINode::addIncoming(Value *V, BasicBlock *BB) {
+    __assert__(V->getType() == getType(), "PHINode::addIncoming: value type mismatch");
+    __assert__(BB, "PHINode::addIncoming: incoming block is nullptr");
+    setIncomingValue(currentNumIncoming, V);
+    setIncomingBlock(currentNumIncoming, BB);
+    currentNumIncoming++;
+}
+
 
 
 }

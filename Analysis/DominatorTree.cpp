@@ -20,7 +20,24 @@ void DominatorTreeResult::dump() const {
 
 bool DominatorTreeWrapper::runOnFunction(Function &F) {
     computeIDom(F);
+    computeTreeNodeDepthHelper(F);
     return true;
+}
+
+void DominatorTreeWrapper::computeTreeNodeDepthHelper(Function &F) {
+    std::queue<BasicBlock *> workList;
+    BasicBlock *entryBlock = &F.getEntryBlock();
+    workList.push(entryBlock);
+    DTResult.nodeDepthMap[entryBlock] = 0;
+    while(!workList.empty()) {
+        BasicBlock *bb = workList.front();
+        workList.pop();
+        DTResult.nodeDepthMap[bb] = DTResult.nodeDepthMap[DTResult.idomMap[bb]] + 1;
+        for(auto *child : DTResult.childrenMap[bb]) {
+            workList.push(child);
+        }
+    }
+    
 }
 
 /// find the ancestor of u (with greater dfn than u by searching the ancestor chain) with the smallest sdom
@@ -80,7 +97,6 @@ void DominatorTreeWrapper::computeIDom(Function &F) {
         }
         auto &bucket = nodeMap[nodeMap[bb].parent].bucket;
         for (auto v : bucket) {
-            std::cout << "fuck" << std::endl;
             BasicBlock *u = eval(v);
             __assert__(u && v, "u or v is nullptr");
             if(nodeMap[u].sdom < nodeMap[v].sdom) {

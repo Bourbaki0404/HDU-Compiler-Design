@@ -399,6 +399,13 @@ struct GetElementPtrInst : public Instruction {
     //     // Scalar GEP
     //     return PtrTy;
     // }
+
+    static bool classof(const Instruction *I) {
+        return I->getOpcode() == Instruction::GET_ELEMENT_PTR;
+    }
+    static bool classof(Value *V) {
+        return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
+    }
 };
 
 /// Return a value (possibly void), from a function.  Execution
@@ -444,8 +451,9 @@ struct CallInst : public Instruction {
 // PHINode - The PHINode class is used to represent the magical mystical PHI
 // node, that can not exist in nature, but can be synthesized in a computer
 // scientist's overactive imagination.
+// numReserved is the number of branches that are reserved for the phi node
 struct PHINode : public Instruction {
-    PHINode(Type *ty, const std::string& name = "");
+    PHINode(Type *ty, size_t numReserved, const std::string& name = "");
 
     void setIncomingValue(unsigned i, Value *V);
     Value *getIncomingValue(unsigned i) const;
@@ -455,7 +463,9 @@ struct PHINode : public Instruction {
 
     void replaceIncomingBlockWith(BasicBlock *Old, BasicBlock *New);
 
+    void addIncoming(Value *V, BasicBlock *BB);
 
+    unsigned getNumIncomingValues() const { return currentNumIncoming; }
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static bool classof(const Instruction *I) {
@@ -464,6 +474,14 @@ struct PHINode : public Instruction {
     static bool classof(Value *V) {
         return isa<Instruction>(V) && classof(dyn_cast<Instruction>(V));
     }
+
+private:
+
+    /// @brief the number of operands that are reserved for the phi node
+    unsigned reservedSpace;
+
+    /// @brief the current number of incoming values
+    unsigned currentNumIncoming;
 };
 
 

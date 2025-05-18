@@ -29,7 +29,19 @@ public:
     size_t getNumChildren(BasicBlock *bb) const { return childrenMap.at(bb).size(); }
 
     /// Get the child of a basic block at index
-    BasicBlock *getChild(BasicBlock *bb, size_t index) const { return *std::next(childrenMap.at(bb).begin(), index); }  
+    BasicBlock *getChild(BasicBlock *bb, size_t index) const { return *std::next(childrenMap.at(bb).begin(), index); } 
+
+    /// Check if a basic block dominates another basic block
+    bool dominates(BasicBlock *bb, BasicBlock *other) const {
+        __assert__(bb && other, "Basic block is nullptr");
+        while(other && (nodeDepthMap.at(idomMap.at(other)) >= nodeDepthMap.at(bb))) {
+            if(idomMap.at(other) == bb) {
+                return true;
+            }
+            other = idomMap.at(other);
+        }
+        return false;
+    }
 
     /// Dump the dominator tree
     void dump() const;
@@ -40,6 +52,9 @@ private:
     
     /// reference to the children map in the dominator tree wrapper
     std::unordered_map<BasicBlock *, std::unordered_set<BasicBlock *>> childrenMap;
+
+    /// reference to the tree node depth map in the dominator tree wrapper
+    std::unordered_map<BasicBlock *, size_t> nodeDepthMap;
 };
 
 /// DominatorTree Analysis Pass - Compute a dominator tree for a function
@@ -47,8 +62,7 @@ private:
 class DominatorTreeWrapper : public AnalysisPass<DominatorTreeResult>, public FunctionPass {
 public:
 
-    DominatorTreeWrapper()
-    : FunctionPass() {}
+    DominatorTreeWrapper() {}
 
     /// Run the dominator tree algorithm on the function
     bool runOnFunction(Function &F) override;
@@ -76,6 +90,11 @@ public:
 private:
     /// Compute the dominator tree using the Lengauer-Tarjan algorithm
     void computeIDom(Function &F);
+
+    /// Compute the tree node depth of the dominator tree by BFS
+    /// Should be called directly after computeIDom
+    /// No visited array is needed since it is tree traversal
+    inline void computeTreeNodeDepthHelper(Function &F);
 
     /// Evaluate the semi-dominator of a node
     BasicBlock *eval(BasicBlock *u);
