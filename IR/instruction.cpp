@@ -42,8 +42,8 @@ Value *Instruction::getOperand(size_t i) const {
 unsigned Instruction::getNumSuccessors() const {
     __assert__(isTerminator(), "Instruction getNumSuccessors fail\n");
     switch(getOpcode()) {
-        RET: return ((const ReturnInst*)this)->getNumSuccessors();
-        BR : return ((const BranchInst*)this)->getNumSuccessors();
+        case RET: return ((const ReturnInst*)this)->getNumSuccessors();
+        case BR : return ((const BranchInst*)this)->getNumSuccessors();
         default: __assert__(false, "undef instruction at getNumSuccessors");
     }
 }
@@ -51,8 +51,8 @@ unsigned Instruction::getNumSuccessors() const {
 BasicBlock *Instruction::getSuccessor(unsigned i) const {
     __assert__(isTerminator() && i <= getNumSuccessors(), "Instruction getSuccessor fail\n");
     switch(getOpcode()) {
-        RET: return ((const ReturnInst*)this)->getSuccessor(i);
-        BR : return ((const BranchInst*)this)->getSuccessor(i);
+        case RET: return ((const ReturnInst*)this)->getSuccessor(i);
+        case BR : return ((const BranchInst*)this)->getSuccessor(i);
         default: __assert__(false, "undef instruction at getNumSuccessors");
     }
 }
@@ -174,6 +174,19 @@ std::string CmpInst::getPredicateName(Predicate Pred) {
     }
 }
 
+CmpInst::CmpInst(Predicate pred, size_t opcode, Value *lhs, Value *rhs, const std::string& name)
+: Instruction(lhs->getType(), opcode, 2) {
+    __assert__(lhs->getType() == rhs->getType(), "CmpInst: lhs and rhs have different types");
+    this->setOperand(lhs, 0);
+    this->setOperand(rhs, 1);
+    this->setName(name);
+}
+
+ICmpInst::ICmpInst(Predicate pred, Value* lhs, Value* rhs, const std::string& name)
+: CmpInst(pred, ICMP, lhs, rhs, name) {}
+
+FCmpInst::FCmpInst(Predicate pred, Value* lhs, Value* rhs, const std::string& name)
+: CmpInst(pred, FCMP, lhs, rhs, name) {}
 
 BranchInst::BranchInst(BasicBlock *IfTrue)
     : Instruction(Type::getVoidTy(), BR, 1) {

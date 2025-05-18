@@ -6,13 +6,15 @@ namespace IR{
 
 Function::Function(FunctionType *ty, LinkageTypes Linkage, const std::string &Name, Module *M)
 : GlobalObject(ty, FunctionVal, Linkage, Name), NumArgs(ty->getNumParams()) {
+    
+    /// Don't set the parent here, use M->getFunctionList().push_back(this) instead
+    /// because the parent is managed by the SymbolTableListTraits!!!!!!!!
+    // parent = M;
 
     // create a symbol table for the function
     SymTab = std::make_unique<ValueSymbolTable>();
-
     // build the arguments vector if needed
     BuildLazyArguments();
-
     // push the function to the list of functions in the module and update module symbol table
     // Local names will not be added to the global symbol table
     if(M) {

@@ -217,7 +217,6 @@ struct UnaryOp : public Instruction {
 /// This class is the base class for the comparison instructions.
 /// Abstract base class of comparison instructions.
 struct CmpInst : public Instruction {
-    CmpInst();
     /// This enumeration lists the possible predicates for CmpInst subclasses.
     /// Values in the range 0-31 are reserved for FCmpInst, while values in the
     /// range 32-64 are reserved for ICmpInst. This is necessary to ensure the
@@ -255,8 +254,9 @@ struct CmpInst : public Instruction {
         ICMP_SLE = 41, ///< signed less or equal
         FIRST_ICMP_PREDICATE = ICMP_EQ,
         LAST_ICMP_PREDICATE = ICMP_SLE,
-        BAD_ICMP_PREDICATE = ICMP_SLE + 1
     };
+    CmpInst(Predicate pred, size_t opcode, Value *lhs, Value *rhs, const std::string& name = "");
+
     static std::string getPredicateName(Predicate Pred);
     void setPredicate(Predicate pred) { this->pred = pred; }
     Predicate getPredicate() const { return pred; }
@@ -272,11 +272,11 @@ struct CmpInst : public Instruction {
 };
 
 struct ICmpInst : public CmpInst {
-    ICmpInst(Type* ty, Predicate pre, Value* lhs, Value* rhs, const std::string& name = "");
+    ICmpInst(Predicate pred, Value* lhs, Value* rhs, const std::string& name = "");
 };
 
 struct FCmpInst : public CmpInst {
-    FCmpInst(Type* ty, Predicate pre, Value* lhs, Value* rhs, const std::string& name = "");
+    FCmpInst(Predicate pred, Value* lhs, Value* rhs, const std::string& name = "");
 };
 
 class CastInst : public Instruction {

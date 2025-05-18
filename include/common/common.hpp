@@ -16,6 +16,7 @@
 #include <cassert>
 #include <functional>
 #include <ostream>
+#include <stack>
 #include <sstream>
 
 namespace color {

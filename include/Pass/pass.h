@@ -75,7 +75,7 @@ public:
     using Result = ResultType;
     
     /// Get the result of this analysis pass
-    virtual ResultType *getResult() = 0;
+    virtual ResultType *getAnalysisResult() = 0;
 };
 
 /// The pass manager class that handles running passes in sequence

@@ -128,14 +128,26 @@ struct IRBuilder {
 
 
     // // Integer comparison
-    // Value* CreateICmpEQ(Type* ty, Value* lhs, Value* rhs, const std::string& name = "");
-    // Value* CreateICmpLT(Type* ty, Value* lhs, Value* rhs, const std::string& name = "");
-    // Value* CreateICmpGT(Type* ty, Value* lhs, Value* rhs, const std::string& name = "");
+    Value* CreateICmpEQ(Value* lhs, Value* rhs, const std::string& name = "") {
+        return Insert(new ICmpInst(ICmpInst::Predicate::ICMP_EQ, lhs, rhs, name));
+    }
+    Value* CreateICmpLT(Value* lhs, Value* rhs, const std::string& name = "") {
+        return Insert(new ICmpInst(ICmpInst::Predicate::ICMP_ULT, lhs, rhs, name));
+    }
+    Value* CreateICmpGT(Value* lhs, Value* rhs, const std::string& name = "") {
+        return Insert(new ICmpInst(ICmpInst::Predicate::ICMP_UGT, lhs, rhs, name));
+    }
 
     // // Floating-point comparison
-    // Value* CreateFCmpOEQ(Type* ty, Value* lhs, Value* rhs, const std::string& name = "");
-    // Value* CreateFCmpOLT(Type* ty, Value* lhs, Value* rhs, const std::string& name = "");
-    // Value* CreateFCmpOGT(Type* ty, Value* lhs, Value* rhs, const std::string& name = "");
+    Value* CreateFCmpOEQ(Value* lhs, Value* rhs, const std::string& name = "") {
+        return Insert(new FCmpInst(FCmpInst::Predicate::FCMP_OEQ, lhs, rhs, name));
+    }
+    Value* CreateFCmpOLT(Value* lhs, Value* rhs, const std::string& name = "") {
+        return Insert(new FCmpInst(FCmpInst::Predicate::FCMP_OLT, lhs, rhs, name));
+    }
+    Value* CreateFCmpOGT(Value* lhs, Value* rhs, const std::string& name = "") {
+        return Insert(new FCmpInst(FCmpInst::Predicate::FCMP_OGT, lhs, rhs, name));
+    }
 
     // // GEP
     // Value* IRBuilder::CreateGEP(Type* elementType, Value* basePtr, Value* index, const std::string& name);

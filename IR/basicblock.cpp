@@ -64,7 +64,7 @@ void BasicBlock::setParent(struct Function *parent) {
 }
 
 Instruction *BasicBlock::getTerminator() {
-    if(InstList.empty() || InstList.back().isTerminator()) {
+    if(InstList.empty() || !InstList.back().isTerminator()) {
         return nullptr;
     } else {
         return &InstList.back();

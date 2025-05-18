@@ -9,6 +9,7 @@ namespace IR{
 struct Constant : public Value {
     Constant(Type *Ty, unsigned scid)
     : Value(Ty, scid) {}
+
     static Constant *getIntegerValue(Type *Ty, const uint64_t V);
 
     static bool classof(const Value *V) {

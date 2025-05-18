@@ -2,7 +2,7 @@
 
 #include "common/common.hpp"
 #include "Pass/pass.h"
-#include "Analysis/DominatorTree.h"
+#include "Analysis/DominatorTree.hpp"
 #include "IR/Function.hpp"
 #include "IR/instruction.hpp"
 

@@ -10,9 +10,9 @@
 namespace IR {
 
 // Forward declarations
-class BasicBlock;
-class Instruction;
-class Use;
+struct BasicBlock;
+struct Instruction;
+struct Use;
 
 /// This includes generic facilities for
 /// iterating successors and predecessors of basic blocks, the successors of
@@ -30,7 +30,7 @@ public:
     using use_iterator = UseIterator;
 
 private:
-    using Self = PredIterator<Ptr>;
+    using Self = PredIterator<Ptr, UseIterator>;
     use_iterator It;
 
     inline void advancePastNonTerminators() {
@@ -84,8 +84,8 @@ public:
     }
 };
 
-using pred_iterator = PredIterator<BasicBlock>;
-using const_pred_iterator = PredIterator<const BasicBlock>;
+using pred_iterator = PredIterator<BasicBlock, Instruction::use_iterator>;
+using const_pred_iterator = PredIterator<const BasicBlock, Instruction::const_use_iterator>;
 using pred_range = iterator_range<pred_iterator>;
 using const_pred_range = iterator_range<const_pred_iterator>;
 

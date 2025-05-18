@@ -4,7 +4,7 @@
 #include "IR/instruction.hpp"
 #include "IR/Cast.hpp"
 #include "IR/utils.hpp"
-#include "Analysis/DominatorTree.h"
+#include "Analysis/DominatorTree.hpp"
 
 namespace IR{
 
@@ -78,45 +78,13 @@ bool Mem2Reg::promoteMemoryToRegister(Function &F) {
 
 // See SSA book Algorithm 3.1: Standard algorithm for inserting φ-functions
 void Mem2Reg::insertPHINodes(AllocaInst *AI) {
-    std::unordered_set<BasicBlock *> F; // Flag set for visited blocks
-    std::unordered_set<BasicBlock *> WorkingList;
 
-    // Get dominator tree analysis result
-    DominatorTreeResult *DTResult = getAnalysis<DominatorTree>();
-    if (!DTResult) {
-        __assert__(false, "Failed to get DominatorTree analysis");
-        return;
-    }
-
-    // Initialize the working list with the blocks that define the alloca
-    for(BasicBlock *BB : allocaInfoMap[AI].DefBlocks) {
-        WorkingList.insert(BB);
-    }
-
-    while(!WorkingList.empty()) {
-        BasicBlock *BB = *WorkingList.begin();
-        WorkingList.erase(BB);
-        F.insert(BB);
-
-        // Iterate over the dominator frontier of BB
-        const auto &DomFrontiers = DTResult->getDomFrontiers();
-        auto DF = DomFrontiers.find(BB);
-        if (DF != DomFrontiers.end()) {
-            for (BasicBlock *Y : DF->second) {
-                if (F.find(Y) == F.end()) {
-                    // TODO: Insert PHI node in Y if needed
-                    // For now we'll just add it to the working list
-                    WorkingList.insert(Y);
-                }
-            }
-        }
-    }
 }
 
 
 bool Mem2Reg::runOnFunction(Function &F) {
     // We need the dominator tree for this pass
-    getPassManager()->run<DominatorTree>(F);
+    
     
     return promoteMemoryToRegister(F);
 }

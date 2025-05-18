@@ -174,6 +174,7 @@ public:
             
             use_iterator() = default;
             use_iterator(dlist_iterator _it) : it(_it) {}
+            use_iterator(const use_iterator &other) : it(other.it) {}
             
             pointer operator*() const { return it->getUser(); }
             pointer operator->() const { return it->getUser(); }
@@ -194,7 +195,6 @@ public:
     };
 
     class const_use_iterator {
-        private:
             using dlist_iterator = typename dlist<Use>::const_iterator;
             dlist_iterator it;
             
@@ -206,6 +206,7 @@ public:
 
             const_use_iterator() = default;
             const_use_iterator(dlist_iterator _it) : it(_it) {}
+            const_use_iterator(const const_use_iterator &other) : it(other.it) {}
 
             pointer operator*() const { return it->getUser(); }
             pointer operator->() const { return it->getUser(); }

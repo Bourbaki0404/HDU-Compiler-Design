@@ -34,6 +34,7 @@ struct GlobalObject : public Constant {
 
     GlobalObject(Type *Ty, unsigned scid, LinkageTypes Linkage, const std::string &Name)
     : Constant(Ty, scid), valueType(Ty), linkage(Linkage) {
+        parent = nullptr;
         setName(Name);
     }
 

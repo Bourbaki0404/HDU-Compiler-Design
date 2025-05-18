@@ -73,6 +73,7 @@ void Value::setName(const std::string &Name) {
 	// only set the name of the value, do not modify the symbol table
 	__setName__(Name);
 
+
 	// get the symbol table
 	ValueSymbolTable *ST = nullptr;
 	if(!getSymTab(this, ST)) {
@@ -87,6 +88,7 @@ void Value::setName(const std::string &Name) {
 			ST->reinsertValue(this);
 		}
 	} // if not in the symbol table, do nothing is ok
+
 }
 
 

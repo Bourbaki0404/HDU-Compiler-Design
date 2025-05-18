@@ -7,7 +7,8 @@ namespace IR {
 struct Value;
 
 struct Module {
-    Module() {}
+    Module()
+    : ValSymTab(std::make_unique<ValueSymbolTable>()) {}
     // std::string allocName(std::string base);
     // bool isNameConflict(const std::string &name) { return names.count(name); }
     // std::unordered_map<std::string, size_t> names;

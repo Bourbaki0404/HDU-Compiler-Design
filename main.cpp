@@ -12,6 +12,9 @@
 #include "IR/constant.hpp"
 #include "IR/module.hpp"
 #include "IR/asmWriter.hpp"
+#include "IR/CFG.hpp"
+#include "common/Graph.hpp"
+#include "Analysis/DominatorTree.hpp"
 
 // #define GenerateParser
 
@@ -55,30 +58,74 @@ int (main) (int argc, char* argv[]) {
 //     TypeFactory::deleteAll();
     IR::Module *mod = new IR::Module;
     IR::IRBuilder *builder = new IR::IRBuilder;
-    IR::BasicBlock *BB = new IR::BasicBlock;
+
+    std::cout << "hello" << std::endl;
+    
+    // Create function
     auto intTy = IR::Type::getInt32Ty();
-    builder->setInsertPoint(BB);
+    IR::Function *F = new IR::Function(IR::FunctionType::get(IR::Type::getVoidTy(), {intTy, intTy}, false), 
+                                      IR::Function::ExternalLinkage, "test", mod);
+
+    std::cout << "hello" << std::endl;
+    
+    // Create basic blocks for nested conditionals
+    IR::BasicBlock *entryBB = new IR::BasicBlock();
+    IR::BasicBlock *thenBB1 = new IR::BasicBlock();
+    IR::BasicBlock *elseBB1 = new IR::BasicBlock();
+    IR::BasicBlock *thenBB2 = new IR::BasicBlock();
+    IR::BasicBlock *elseBB2 = new IR::BasicBlock();
+    IR::BasicBlock *mergeBB = new IR::BasicBlock();
+
+        std::cout << "hello" << std::endl;
+    
+    // Add blocks to function
+    F->getBasicBlockList().push_back(entryBB);
+    F->getBasicBlockList().push_back(thenBB1);
+    F->getBasicBlockList().push_back(elseBB1);
+    F->getBasicBlockList().push_back(thenBB2);
+    F->getBasicBlockList().push_back(elseBB2);
+    F->getBasicBlockList().push_back(mergeBB);
+    
+    // Entry block
+    builder->setInsertPoint(entryBB);
     auto intconst = IR::Constant::getIntegerValue(intTy, 2);
-    auto v1 = builder->CreateAdd(intTy, intconst, intconst);
-    auto v2 = builder->CreateSub(intTy, v1, intconst);
-    auto v3 = builder->CreateSDiv(intTy, v2, intconst);
-    auto v4 = builder->CreateUDiv(intTy, v3, intconst);
-    auto curBB = builder->getInsertBlock();
+    auto v1 = builder->CreateAdd(intTy, intconst, intconst, "v1");
+    auto cond1 = builder->CreateICmpEQ(v1, intconst, "cond1");
+    builder->CreateCondBr(cond1, thenBB1, elseBB1);
+    
+    // Then block 1 (outer if)
+    builder->setInsertPoint(thenBB1);
+    auto v2 = builder->CreateAdd(intTy, intconst, intconst, "v2");
+    auto cond2 = builder->CreateICmpEQ(v2, intconst, "cond2");
+    builder->CreateCondBr(cond2, thenBB2, elseBB2);
 
-    IR::BasicBlock *BB1 = new IR::BasicBlock;
-        builder->setInsertPoint(BB1);
-        IR::Function *F = new IR::Function(IR::FunctionType::get(IR::Type::getVoidTy(), {intTy, intTy}, false), IR::Function::ExternalLinkage, "test", mod);
-    auto v5 = builder->CreateAdd(intTy, intconst, intconst);
-    auto v6 = builder->CreateSub(intTy, v5, intconst);
-    auto v7 = builder->CreateSDiv(intTy, v6, intconst);
-    auto v8 = builder->CreateUDiv(intTy, v7, intconst);
-    // IR::Function *T = new IR::Function(nullptr, mod);
-    F->getBasicBlockList().push_back(BB);
-    F->getBasicBlockList().push_back(BB1);
+
+    // Then block 2 (inner if)
+    builder->setInsertPoint(thenBB2);
+    auto v3 = builder->CreateAdd(intTy, intconst, intconst, "v3");
+    builder->CreateBr(mergeBB);
+    
+    // Else block 2 (inner else)
+    builder->setInsertPoint(elseBB2);
+    auto v4 = builder->CreateSub(intTy, intconst, intconst, "v4");
+    builder->CreateBr(mergeBB);
+    
+    // Else block 1 (outer else)
+    builder->setInsertPoint(elseBB1);
+    auto v5 = builder->CreateMul(intTy, intconst, intconst, "v5");
+    builder->CreateBr(mergeBB);
+    
+    // Merge block
+    builder->setInsertPoint(mergeBB);
+    builder->CreateRetVoid();
+    
+    // Print the function
+
     F->print();
 
-    v5->setName("v5");
-    F->print();
+    IR::DominatorTreeWrapper *DT = new IR::DominatorTreeWrapper();
+    DT->runOnFunction(*F);
+    DT->getAnalysisResult()->dump();
     // builder->
     return 0;
 }

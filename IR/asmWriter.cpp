@@ -88,6 +88,11 @@ void TypePrinting::print(Type *Ty) {
             return;
         }
 
+		case Type::typeKind::LabelTy: {
+			Out << "label";
+			return;
+		}
+
         default:
             Out << "<unknown type>";
             return;
